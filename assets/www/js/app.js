@@ -108,25 +108,10 @@ window.app = function() {
 		$('#searchParam').val('');
 		chrome.showSpinner();
 		
-<<<<<<< HEAD
-		if (options.cache) {
-			d = app.loadCachedPage(url);
-		} else {
-			d = app.loadPage(url);
-		}
-=======
->>>>>>> upstream/master
 		if (options.updateHistory) {
 			currentHistoryIndex += 1;
 			pageHistory[currentHistoryIndex] = url;
 		} 
-<<<<<<< HEAD
-		console.log("navigating to " + url);
-		// Enable change language - might've been disabled in a prior error page
-		console.log('enabling language');
-		$('#languageCmd').removeAttr('disabled');  
-		chrome.showContent();
-=======
 		if (options.cache) {
 			d = app.loadCachedPage(url);
 		} else {
@@ -140,7 +125,6 @@ window.app = function() {
 			setMenuItemState('read-in', true);
 			chrome.showContent();
 		});
->>>>>>> upstream/master
 		return d;
 	}
 

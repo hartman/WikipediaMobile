@@ -181,15 +181,9 @@ window.chrome = function() {
 	function toggleForward() {
 		// Length starts from 1, indexes don't.
 		if (currentHistoryIndex < (pageHistory.length - 1)) {
-<<<<<<< HEAD
-			$('#forwardCmd').removeAttr('disabled'); 
-		} else {
-			$('#forwardCmd').attr('disabled', 'disabled');
-=======
 			setMenuItemState('go-forward', true);
 		} else {
 			setMenuItemState('go-forward', false);
->>>>>>> upstream/master
 		}
 	}
 
