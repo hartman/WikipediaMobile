@@ -5,7 +5,6 @@ window.urlCache = function() {
 
 	function dataUrlForImage(img) {
 		var d = $.Deferred();
-		console.log("Starting canvas!");	
 		// Create an empty canvas element
 		var canvas = document.createElement("canvas");
 		canvas.width = img.width;
@@ -41,7 +40,7 @@ window.urlCache = function() {
 					});
 				});
 			}
-			window.requestFileSystem(LocalFileSystem.PERSISTENT, 0, 
+			window.requestFileSystem(LocalFileSystem.PERSISTENT, 0,
 					function(fs){
 						fs.root.getFile(filePath, {create: true}, saveFile, error);
 					});
@@ -49,7 +48,7 @@ window.urlCache = function() {
 		}
 
 		console.log("Trying to open " + filePath);
-		window.resolveLocalFileSystemURI(filePath, 
+		window.resolveLocalFileSystemURI(filePath,
 				function(fileEntry) {
 					console.log("Found!");
 					d.resolve(fileEntry.fullPath);
@@ -61,7 +60,7 @@ window.urlCache = function() {
 		return d;
 	}
 
-	function saveCompleteHtml(url, html) {
+	function saveCompleteHtml(url, data, domParent) {
 		// Converts images to Data URIs
 		var d = $.Deferred();
 
@@ -69,13 +68,11 @@ window.urlCache = function() {
 		var filePath = fileName;
 
 		console.log("Starting to save");
-		var element = $(html);
 		var replacements = {};
 		console.log("HTML Parsed");
 		function saveFile(fileEntry) {
 			fileEntry.createWriter(function(writer) {
-				writer.write(html);
-				console.log('html is ' + html);
+				writer.write(data);
 				console.log("Writing stuff to " + fileEntry.fullPath);
 				writer.onwriteend = function() {
 					console.log("written stuff!");
@@ -85,24 +82,18 @@ window.urlCache = function() {
 		}
 		console.log("About to map stuff");
 
-		// Incredibly wasteful hack going to happen. I'm sorry
-		// I am parsing the entire HTML again, *and* doing string replacement
-		// FIXME: Do only one stupid thing, not two
-		// TODO: Check if Images are actually loaded
-		element.find("img").each(function(i, img) {
+		domParent.find("img").each(function(i, img) {
 			replacements[$(img).attr("src")] =  urlCache.dataUrlForImage(img);
 		});
 
-		$.each(replacements, function(href, data) {
-			html = html.replace(href, data);
+		$.each(replacements, function(href, dataURI) {
+			data = data.replace(href, dataURI);
 		});
 
 		console.log("Done mapping stuff");
-		console.log("Inside the when");
-		window.requestFileSystem(LocalFileSystem.PERSISTENT, 0, 
+		window.requestFileSystem(LocalFileSystem.PERSISTENT, 0,
 			function(fs){
 				console.log(filePath);
-				console.log(JSON.stringify(fs));
 				fs.root.getFile(filePath, {create: true}, saveFile, error);
 			});
 		console.log("Technically done");
@@ -119,13 +110,12 @@ window.urlCache = function() {
 		function readFile(fileEntry) {
 			var reader = new FileReader();
 			reader.onloadend = function(evt) {
-				console.log(JSON.stringify(evt));
 				d.resolve(evt.target.result);
 			};
 			console.log('file path is ' + JSON.stringify(fileEntry));
 			fileEntry.file(function(file) {reader.readAsText(file); });
 		}
-		window.requestFileSystem(LocalFileSystem.PERSISTENT, 0, 
+		window.requestFileSystem(LocalFileSystem.PERSISTENT, 0,
 				function(fs){
 					fs.root.getFile(filePath, {create: false}, readFile, error);
 				});

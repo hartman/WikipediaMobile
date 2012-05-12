@@ -19,32 +19,41 @@ l10n.navigatorLang = function(success) {
 	});
 }
 
-function setMenuItemState(action, state, noUpdate) {
-	if(state) {
-		$("command[action='" + action + "']").removeAttr("disabled");
-	} else {
-		$("command[action='" + action + "']").attr("disabled", "disabled");
-	}
-	if(!noUpdate) { 
-		updateMenuState();
-	}
+function getAboutVersionString() {
+	return "1.2beta2";
+}
+
+(function() {
+	var ANDROIDCREDITS = [
+		"<a href='https://github.com/phonegap/phonegap-plugins/tree/master/Android/Globalization'>PhoneGap Globalization Plugin</a>, <a href='http://www.opensource.org/licenses/MIT'>MIT License</a>",
+		"<a href='https://github.com/phonegap/phonegap-plugins/tree/master/Android/Share'>PhoneGap Share Plugin</a>, <a href='http://www.opensource.org/licenses/MIT'>MIT License</a>",
+		"<a href='https://github.com/m00sey/PhoneGap-Toast'>PhoneGap Toast Plugin</a>, <a href='http://www.opensource.org/licenses/MIT'>MIT License</a>",
+		"<a href='https://github.com/phonegap/phonegap-plugins/tree/master/Android/SoftKeyboard'>PhoneGap SoftKeyboard Plugin</a>, <a href='http://www.opensource.org/licenses/MIT'>MIT License</a>",
+		"<a href='https://github.com/phonegap/phonegap-plugins/tree/master/Android/WebIntent'>PhoneGap WebIntent Plugin</a>, <a href='http://www.opensource.org/licenses/MIT'>MIT License</a>"
+	];
+
+	window.CREDITS.push.apply(window.CREDITS, ANDROIDCREDITS);
+})();
+
+function setMenuItemState(action, state) {
+	window.plugins.SimpleMenu.setMenuState(action, state, function() {}, function() {});
 }
 
 function setPageActionsState(state) {
-	setMenuItemState("read-in", state, false);
-	setMenuItemState("save-page", state, false);
-	setMenuItemState("share-page", state, false);
-	updateMenuState();
+	setMenuItemState("read-in", state);
+	setMenuItemState("save-page", state);
+	setMenuItemState("share-page", state);
 }
 
-window.CREDITS = [
-	"<a href='http://phonegap.com'>PhoneGap</a>, Apache License 2.0",
-	"<a href='http://jquery.com'>jQuery</a>, MIT License",
-	"<a href='http://leaflet.cloudmade.com/'>Leaflet.js</a>, 2-Clause BSD License",
-	"<a href='http://zeptojs.com'>Zepto</a>, MIT License",
-	"<a href='http://cubiq.org/iscroll-4'>iScroll</a>, MIT License",
-	"<a href='http://twitter.github.com/hogan.js/'>Hogan.js</a>, Apache License 2.0"
-	];
+chrome.scrollTo = function(selector, posY) {
+	// scrollTop seems completely useless on Android 2.x, unable to test so far on 4.x
+	// This is the exact opposite of what we noticed on 2.x in the previous release
+	// I've no idea why this is happening, neither does jon
+	// This gives us what we want for now, but now for non-zero scroll positions the
+	// behavior of scrollTo might be different across platforms. 
+	// Ugh. Will bite us when we try to do hashlinks.
+	window.scrollTo(0, posY);
+}
 
 chrome.addPlatformInitializer(function() {
 	$('html').addClass('android');
@@ -132,7 +141,7 @@ function updateMenuState() {
 	var d = $.Deferred();
 
 	var menu_handlers = {
-		'read-in': function() { languageLinks.showAvailableLanguages(); },
+		'read-in': function() { languageLinks.showLangLinks(app.curPage); },
 		'near-me': function() { geo.showNearbyArticles(); },
 		'view-history': function() { appHistory.showHistory(); } ,
 		'save-page': function() { savedPages.saveCurrentPage() },
@@ -163,10 +172,6 @@ function updateMenuState() {
 	return d;
 };
 
-network.isConnected = function()  {
-	return navigator.network.connection.type == Connection.NONE ? false : true;
-}
-
 //@Override
 app.setCaching = function(enabled, success) {
 	console.log('setting cache to ' + enabled);
@@ -180,3 +185,37 @@ app.setCaching = function(enabled, success) {
 window.preferencesDB.addOnSet(function(id, value) {
 	window.plugins.preferences.set(id, value, function(){}, function(){});
 });
+
+savedPages.doSave = function() {
+	console.log("Saving page");
+	chrome.showSpinner();
+	var page = app.curPage;
+	var d = $.Deferred();
+	var gotPath = function(cachedPage) {
+		$('#main img').each(function() {
+			var em = $(this);
+			var target = this.src.replace('file:', 'https:');
+			window.plugins.urlCache.getCachedPathForURI(target,
+				function(imageFile) {
+					em.attr('src', 'file://' + imageFile.file);
+				},
+				function() {
+					console.log("Error in image saving");
+				}
+			);
+		});
+		app.track('mobile.app.wikipedia.save-page');
+		chrome.showNotification(mw.message('page-saved', app.curPage.title).plain());
+		chrome.hideSpinner();
+		d.resolve();
+	}
+	var gotError = function(uri, error) {
+		console.log('Error: ' + JSON.stringify(error));
+		chrome.hideSpinner();
+	}
+	$.each(app.curPage.sections, function(i, section) {
+		chrome.populateSection(section.id);
+	});
+	window.plugins.urlCache.getCachedPathForURI(page.getAPIUrl(), gotPath, gotError);
+	return d;
+}

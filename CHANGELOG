@@ -58,3 +58,116 @@
 - Changed default zoom level
 - Upgraded Leaflet and PhoneGap libraries
 
+## Android v1.1beta3 & iOS v3.1beta2 ##
+
+### Common ###
+
+- Tap area in settings dialog much bigger
+- Switch to up-to-date styles from MobileFrontend, instead of using stale copy
+- Switch to up-to-date js for toggling from MobileFrontend
+- Fixed about screen's back button behaving inconsistently
+- Don't clear map markers when you move around in NearMe view
+- Show spinner when going from NearMe view to article
+
+### Android specific ###
+- Moved Share Page item to main menu
+
+### iOS specific ###
+
+- Scroll bug in about screen fixed
+- Map tiles actually show up
+
+## Android v1.1beta4 & iOS v3.1beta3 ##
+
+### Common ###
+
+- Cleaner Attribution in Map Views
+- Fix missing localization strings
+- Remove close button from Map popups
+- Toggle Code and CSS now pinned to specific revisions. Less breakage!
+
+### Android specific ###
+
+- Fix race condition that sometimes jumbles up menus
+- Spinner now works across a lot more devices
+
+### iOS specific ###
+
+- Fix external links related bugs
+- Remove stray index.html titles in alert and confirm boxes
+
+## Android v1.1RC1 & iOS v3.1RC1 ##
+
+### Common ###
+
+- Added CREDITS for all libraries used + appropriate licensing
+- Updated AUTHORS list
+- Fixed RTL bug in Settings Page
+- Fixed bug with confusion over Hebrew language code
+- Fix issue with scrolling when tapping references 
+
+### Android specific ###
+
+- Fixed clipping of text in About page
+- Fix scrolling bugs in ICS
+
+### iOS specific ###
+
+- Added Share via Twitter
+- Added Save to Read It Later
+- Added Share via Facebook
+- Added a few more Higher resolution icons
+
+## Android v1.1 & iOS v3.1 ##
+
+### Common ###
+
+- List of wikipedias now included locally
+
+### iOS specific ###
+
+- Fix inconsistent login behavior of Facebook sharing
+
+### Android v1.1.1 ###
+
+- Added migration code for older Saved Pages
+
+## Android v1.2beta1 & iOS v3.2beta1 ##
+
+### Common ###
+
+- Uses the API to load content. No more screen scraping.
+- Newer styles for section expansion and contraction
+- New reference reveal implementation that does not involve scrolling
+- Saving pages no longer requires a page reload
+- Language selection in settings displays both name and local name	
+- And plenty of bug fixes!
+
+### iOS specific ###
+
+- Menu items respond faster
+
+### Android specific ###
+
+- Fixes to 'content flashes' on ICS
+
+### Known issues ###
+
+- Tapping on images works only on English wikipedia - opens external browser
+- Main page does not show Mobile Main page
+
+## Android v1.2beta2 & iOS v3.2beta2 ##
+
+### Common ###
+
+- Improved error handling of network issues
+- Show mobile formatted Main page
+- Handle File: pages properly
+- Navigating to URLs in languages other than the default works properly
+- RTL is now handled properly - separate for page contents and the UI
+- 'Read In' links now actually work
+
+### iOS specific ###
+
+- Scrolling in search, saved pages and history overlays works on iOS 4.x
+- Article scrolling should be much better on iOS 4.x

@@ -10,7 +10,7 @@ window.appHistory = function() {
 		if(url == 'about:blank') {
 			return;
 		}
-		
+
 		var historyDB = new Lawnchair({name:"historyDB"},function() {
 			this.keys(function(records) {
 				if (records.length > MAX_LIMIT) {
@@ -36,21 +36,22 @@ window.appHistory = function() {
 			});
 		});
 	}
-	
+
 	// Removes all the elements from history
 	function onClearHistory() {
-		var answer = confirm(mw.message('clear-all-history-prompt').plain());
-		if (answer) {
-			var historyDB = new Lawnchair({name:"historyDB"}, function() {
-				this.nuke();
-				chrome.showContent();
-			});
-		}
+		chrome.confirm(mw.message('clear-all-history-prompt').plain()).done(function(answer) {
+			if (answer) {
+				var historyDB = new Lawnchair({name:"historyDB"}, function() {
+					this.nuke();
+					chrome.showContent();
+				});
+			}
+		});
 	}
 
 	function onHistoryItemClicked() {
 		var parent = $(this).parents(".listItemContainer");
-		var url = parent.attr("data-page-url");
+		var url = parent.data("page-url");
 		app.navigateToPage(url);
 	}
 
@@ -64,8 +65,7 @@ window.appHistory = function() {
 				chrome.hideOverlays();
 				chrome.hideContent();
 				$('#history').localize().show();
-				chrome.doFocusHack();
-				chrome.doScrollHack('#history .scroller');
+				chrome.setupScrolling('#history .scroller');
 			});
 		});
 

@@ -17,51 +17,57 @@ window.chrome = function() {
 		$('.titlebar .spinner').css({display:'none'});	
 		$('#clearSearch').css({height:30});
 	}
-	
+
 	function isSpinning() {
 		$('#search').hasClass('inProgress');
 	}
-	
-	/**
-	 * Import page components from HTML string and display them in #main
-	 *
-	 * @param string html
-	 * @param string url - base URL
-	 */
-	function renderHtml(html, url) {
-		$('base').attr('href', url);
 
-		// Horrible hack to grab the lang & dir attributes from
-		// the target page's <html> without parsing the rest
-		var stub = html.match(/<html ([^>]+)>/i, '$1')[1],
-			$stubdiv = $('<div ' + stub + '></div>'),
-			lang = $stubdiv.attr('lang'),
-			dir = $stubdiv.attr('dir');
+	function renderHtml(page) {
 
-		var trimmed = html.replace(/<body[^>]+>(.*)<\/body/i, '$1');
+		$('base').attr('href', page.getCanonicalUrl());
 
-		var selectors = ['#content>*', '#copyright'],
-			$target = $('#main'),
-			$div = $(trimmed);
+		if(l10n.isLangRTL(page.lang)) {
+			$("#content").attr('dir', 'rtl');
+		} else {
+			$("#content").attr('dir', 'ltr');
+		}
+		$("#main").html(page.toHtml());
 
-		$target
-			.empty()
-			.attr('lang', lang)
-			.attr('dir', dir);
-		$.each(selectors, function(i, sel) {
-			var con = $div.find(sel).remove();
-			con.appendTo($target);
+		MobileFrontend.references.init($("#main")[0], false, {animation: 'none'});
+		handleSectionExpansion();
+	}
+
+	function populateSection(sectionID) {
+		var $contentBlock = $("#content_" + sectionID);
+		if(!$contentBlock.data('populated')) {
+			var sectionHtml = app.curPage.getSectionHtml(sectionID);
+			$contentBlock.append($(sectionHtml)).data('populated', true);
+			MobileFrontend.references.init($contentBlock[0], false, {animation: 'none'});
+		} 
+	}
+
+	function handleSectionExpansion() {
+		$(".section_heading").click(function() {
+			var sectionID = $(this).data('section-id');
+			chrome.populateSection(sectionID);
+			MobileFrontend.toggle.wm_toggle_section(sectionID);
+			chrome.setupScrolling("#content");
 		});
-
-		languageLinks.parseAvailableLanguages($div);
-		
-		chrome.doScrollHack('#content');
 	}
 
 	function showNotification(text) {
 		alert(text);
 	}
 
+	function confirm(text) {
+		var d = $.Deferred();
+
+		navigator.notification.confirm(text, function(button) {
+			d.resolve(button === 1); //Assumes first button is OK
+		}, "");
+
+		return d;
+	}
 	function initialize() {
 		$.each(platform_initializers, function(index, fun) {
 			fun();
@@ -71,31 +77,40 @@ window.chrome = function() {
 		// the style needs to be explicitly set for logic used in the backButton handler
 		$('#content').css('display', 'block');
 
-		// this has to be set for the window.history API to work properly
-		//PhoneGap.UsePolling = true;
+		var lastSearchTimeout = null; // Handle for timeout last time a key was pressed
 
-		preferencesDB.initializeDefaults(function() { 
-			app.baseURL = app.baseUrlForLanguage(preferencesDB.get('language'));
+		preferencesDB.initializeDefaults(function() {
 			/* Split language string about '-' */
-			var lan_arr = (preferencesDB.get('locale')).split('-');
-			var lan_arr_nor = l10n.normalizeLanguageCode(lan_arr[0]);
-			var spe_arr = new Array("arc","ar","ckb","dv","fa","he","khw","ks","mzn","pnb","ps","sd","ug","ur","yi");
-			for(a=0;a < spe_arr.length;a++){
-				if(lan_arr_nor==spe_arr[a]){
-					$("body").attr('dir','rtl');
-				}
+			console.log('language is ' + preferencesDB.get('uiLanguage'));
+			if(l10n.isLangRTL(preferencesDB.get('uiLanguage'))) {
+				$("body").attr('dir', 'rtl');
 			}
-			
+
+			app.setContentLanguage(preferencesDB.get('language'));
+
 			// Do localization of the initial interface
 			$(document).bind("mw-messages-ready", function() {
 				$('#mainHeader, #menu').localize();
+				updateMenuState();
+				$("#page-footer-contributors").html(mw.message('page-contributors').plain());
+				$("#page-footer-license").html(mw.message('page-license').plain());
+				$("#show-page-history").click(function() {
+					if(app.curPage) {
+						chrome.openExternalLink(app.curPage.getHistoryUrl());
+					}
+					return false;
+				});
+				$("#show-license-page").click(function() {
+					app.navigateTo(window.LICENSEPAGE, "en");
+					return false;
+				});
 			});
 			l10n.initLanguages();
-			
-			updateMenuState();
 
-			$(".titlebarIcon").bind('touchstart', function() {
-				homePage();
+			toggleMoveActions();
+
+			$(".titlebarIcon").bind('click', function() {
+				app.loadMainPage();
 				return false;
 			});
 			$("#searchForm").bind('submit', function() {
@@ -106,11 +121,16 @@ window.chrome = function() {
 				{
 					$("#searchParam").blur();
 				}else{
-					// Needed because .val doesn't seem to update instantly
-					setTimeout(function() { 
-						window.search.performSearch($("#searchParam").val(), true); 
-					}, 5);
+					// Wait 300ms with no keypress before starting request
+					window.clearTimeout(lastSearchTimeout);
+					lastSearchTimeout = setTimeout(function() {
+						window.search.performSearch($("#searchParam").val(), true);
+					}, 300);
 				}
+			});
+			$("#searchParam").click(function() {
+				$(this).focus(); // Seems to be needed to actually focus on the search bar
+				// Caused by the FastClick implementation
 			});
 			$("#clearSearch").bind('touchstart', function() {
 				clearSearch();
@@ -118,28 +138,19 @@ window.chrome = function() {
 			});
 
 			$(".closeButton").bind('click', showContent);
+			// Initialize Reference reveal with empty content
+			MobileFrontend.references.init($("#content")[0], true);
 
 			initContentLinkHandlers();
 			chrome.loadFirstPage();
-			doFocusHack();
+			chrome.setupFastClick("header, .titlebar");
 		});
-		
+
 	}
 
 	function loadFirstPage() {
-		chrome.showSpinner();
-
-		// restore browsing to last visited page
-		var historyDB = new Lawnchair({name:"historyDB"}, function() {
-			this.all(function(history){
-				if(history.length==0 || window.history.length > 1) {
-					app.navigateToPage(app.baseURL);
-				} else {
-					app.navigateToPage(history[history.length-1].value);
-				}
-			});
-		});
-
+		// NOP
+		// Overriden in Android for loading URLs from intents
 	}
 
 	function isTwoColumnView() {
@@ -163,28 +174,33 @@ window.chrome = function() {
 		hideOverlays();
 		$('#mainHeader').show();
 		$('#content').show();
+		$("#menu").show();
 	}
 
-	function hideContent() {  
+	function hideContent() {
 		$('#mainHeader').hide();
 		if(!isTwoColumnView()) {
 			$('#content').hide();
+			$("#menu").hide();
 		} else {
 			$('html').addClass('overlay-open');
 		}
 	}
 
-	function showNoConnectionMessage() {
-		alert(mw.message('error-offline-prompt'));
+	function popupErrorMessage(xhr) {
+		if(xhr === "error") {
+			navigator.notification.alert(mw.message('error-offline-prompt').plain());
+		} else {
+			navigator.notification.alert(mw.message('error-server-issue-prompt').plain());
+		}
 	}
 
-	function toggleForward() {
-		// Length starts from 1, indexes don't.
-		if (currentHistoryIndex < (pageHistory.length - 1)) {
-			setMenuItemState('go-forward', true);
-		} else {
-			setMenuItemState('go-forward', false);
-		}
+	function toggleMoveActions() {
+		var canGoForward = currentHistoryIndex < (pageHistory.length -1);
+		var canGoBackward = currentHistoryIndex > 0;
+
+		setMenuItemState('go-forward', canGoForward, true);
+		setMenuItemState('go-back', canGoBackward, true);
 	}
 
 	function goBack() {
@@ -222,56 +238,19 @@ window.chrome = function() {
 			});
 		} else {
 			chrome.hideSpinner();
-			toggleForward();
+			toggleMoveActions();
 		}
 	}
 
-	// Hack to make sure that things in focus actually look like things in focus
-	function doFocusHack() {
-		var scrollEnd = false;
-		var applicableClasses = [
-			'.deleteButton',
-			'.listItem',
-			'#search',
-			'.closeButton',
-			'.cleanButton',
-			'.titlebarIcon'
-		];
-	  
-		for (var key in applicableClasses) {
-			applicableClasses[key] += ':not(.activeEnabled)';
-		}
-		console.log(applicableClasses);
-
-		function onTouchMove() {
-			scrollEnd = true;
-		}
-
-		function onTouchEnd() {
-			if(!scrollEnd)	{
-				$(this).addClass('active');
-				setTimeout(function() {
-					$('.active').removeClass('active');
-				} , 150 ) ;				
+	function setupFastClick(selector) {
+		$(selector).each(function(i, el) {
+			var $el = $(el);
+			if($el.data('fastclick')) {
+				return;
+			} else {
+				$el.data('fastclick', new NoClickDelay($el[0]));
 			}
-			$('body').unbind('touchend', onTouchEnd);
-			$('body').unbind('touchmove', onTouchMove);
-		}
-	  
-		function onTouchStart() {   
-			$('body').bind('touchend', onTouchEnd);
-			$('body').bind('touchmove', onTouchMove);
-			scrollEnd = false;	
-		}			
-
-		setTimeout(function() {
-			$(applicableClasses.join(',')).each(function(i) {
-				$(this).bind('touchstart', onTouchStart);
-				$(this).bind('touchmove', onTouchMove);
-				$(this).bind('touchend', onTouchEnd);
-				$(this).addClass('activeEnabled');
-			});
-		}, 500);
+		});
 	}
 
 	function initContentLinkHandlers() {
@@ -281,47 +260,32 @@ window.chrome = function() {
 				url = target.href,             // expanded from relative links for us
 				href = $(target).attr('href'); // unexpanded, may be relative
 
-			// Stop the link from opening in the iframe directly...
 			event.preventDefault();
-			
-			if (href.substr(0, 1) == '#') {
-				// A local hashlink; simulate?
-				var off = $(href).offset(),
-					y = off ? off.top : 52;
-				window.scrollTo(0, y - 52);
-				return;
-			}
 
 			if (url.match(new RegExp("^https?://([^/]+)\." + PROJECTNAME + "\.org/wiki/"))) {
 				// ...and load it through our intermediate cache layer.
 				app.navigateToPage(url);
 			} else {
 				// ...and open it in parent context for reals.
-				//
-				// This seems to successfully launch the native browser, and works
-				// both with the stock browser and Firefox as user's default browser
-				//document.location = url;
-				window.open(url);
+				chrome.openExternalLink(url);
 			}
 		});
 	}
 	
-	function onPageLoaded() {
-		window.scroll(0,0);
-		appHistory.addCurrentPage();
-		toggleForward();
-		geo.addShowNearbyLinks();
-		chrome.hideSpinner();  
-		console.log('currentHistoryIndex '+currentHistoryIndex + ' history length '+pageHistory.length);
+	function setupScrolling(selector) {
+		// Setup iScroll4 in iOS 4.x. 
+		// NOOP otherwise
 	}
-	
-	function doScrollHack(element, leaveInPlace) {
-		// placeholder for iScroll etc where needed
-		
-		// Reset scroll unless asked otherwise
-		if (!leaveInPlace) {
-			$(element)[0].scrollTop = 0;
-		}
+
+	function scrollTo(selector, posY) {
+		$(selector).scrollTop(posY);
+	}
+
+	function openExternalLink(url) {
+		// This seems to successfully launch the native browser, and works
+		// both with the stock browser and Firefox as user's default browser
+		//document.location = url;
+		window.open(url);
 	}
 
 	return {
@@ -334,14 +298,18 @@ window.chrome = function() {
 		showNotification: showNotification,
 		goBack: goBack,
 		goForward: goForward,
-		onPageLoaded: onPageLoaded,
 		hideOverlays: hideOverlays,
 		showContent: showContent,
 		hideContent: hideContent,
 		addPlatformInitializer: addPlatformInitializer,
-		showNoConnectionMessage: showNoConnectionMessage,
-		doFocusHack: doFocusHack,
+		popupErrorMessage: popupErrorMessage,
+		setupFastClick: setupFastClick,
 		isTwoColumnView: isTwoColumnView,
-		doScrollHack: doScrollHack
+		openExternalLink: openExternalLink,
+		toggleMoveActions: toggleMoveActions,
+		confirm: confirm,
+		setupScrolling: setupScrolling,
+		scrollTo: scrollTo,
+		populateSection: populateSection
 	};
 }();

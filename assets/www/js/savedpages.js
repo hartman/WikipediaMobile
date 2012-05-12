@@ -1,12 +1,7 @@
 window.savedPages = function() {
 
-	function doSave(url, title) {
-		app.navigateToPage(url, {
-			cache: true,
-		updateHistory: false
-		}).then(function() { 
-			chrome.showNotification(mw.message('page-saved', title).plain());
-		});
+	function doSave() {
+		// Overriden in appropriate platform files
 	}
 
 	function saveCurrentPage() {
@@ -24,8 +19,8 @@ window.savedPages = function() {
 						// @todo this is probably not great, remove this :)
 						alert(mw.message("saved-pages-max-warning").plain());
 					}else{
-						savedPagesDB.save({key: url, title: title});
-						savedPages.doSave(url, title);
+						savedPagesDB.save({key: app.curPage.getAPIUrl(), title: title, lang: app.curPage.lang});
+						savedPages.doSave(app.curPage.getAPIUrl(), title);
 					}
 				}
 			});
@@ -34,39 +29,43 @@ window.savedPages = function() {
 
 	function onSavedPageClick() {
 		var parent = $(this).parents(".listItemContainer");
-		var url = parent.attr("data-page-url");
-		app.navigateToPage(url, {cache: true});
+		var url = parent.data("page-url");
+		var lang = parent.data("page-lang");
+		var title = parent.data("page-title");
+		chrome.showContent();
+		app.loadCachedPage(url, title, lang);
 	}
 
 	function onSavedPageDelete() {
 		var parent = $(this).parents(".listItemContainer");
-		var url = parent.attr("data-page-url");
-		var title = parent.attr("data-page-title");
+		var url = parent.data("page-url");
+		var title = parent.data("page-title");
 		deleteSavedPage(title, url);
 	}
 
 	function deleteSavedPage(title, url) {
-		var answer = confirm(mw.message('saved-page-remove-prompt', title).plain());
-
-		if (answer) {
-			var savedPagesDB = new Lawnchair({name:"savedPagesDB"}, function() {
-				this.remove(url, function() {
-					chrome.showNotification(mw.message('saved-page-removed', title ).plain());
-					$(".listItemContainer[data-page-url=\'" + url + "\']").hide();
+		chrome.confirm(mw.message('saved-page-remove-prompt', title).plain()).done(function(answer) {
+			if (answer) {
+				var savedPagesDB = new Lawnchair({name:"savedPagesDB"}, function() {
+					this.remove(url, function() {
+						chrome.showNotification(mw.message('saved-page-removed', title ).plain());
+						$(".listItemContainer[data-page-url=\'" + url + "\']").hide();
+					});
 				});
-			});
-		}
+			}
+		});
 	}
-	
+
 	// Removes all the elements from saved pages
 	function onClearSavedPages() {
-		var answer = confirm(mw.message('clear-all-saved-pages-prompt').plain());
-		if (answer) {
-			var savedPagesDB = new Lawnchair({name:"savedPagesDB"}, function() {
-				this.nuke();
-				chrome.showContent();
-			});
-		}
+		chrome.confirm(mw.message('clear-all-saved-pages-prompt').plain()).done(function(answer) {
+			if (answer) {
+				var savedPagesDB = new Lawnchair({name:"savedPagesDB"}, function() {
+					this.nuke();
+					chrome.showContent();
+				});
+			}
+		});
 	}
 
 
@@ -79,10 +78,9 @@ window.savedPages = function() {
 				$("#savedPages .cleanButton").unbind('click', onClearSavedPages).bind('click', onClearSavedPages);
 				$(".deleteSavedPage").click(onSavedPageDelete);
 				chrome.hideOverlays();
-				$('#savedPages').toggle();
+				$('#savedPages').localize().show();
 				chrome.hideContent();
-				chrome.doFocusHack();
-				chrome.doScrollHack('#savedPages .scroller');
+				chrome.setupScrolling('#savedPages .scroller');
 			});
 		});
 

@@ -1,5 +1,7 @@
 window.geo = function() {
 
+	var shownURLs = [];
+
 	function showNearbyArticles( args ) {
 		var args = $.extend(
 			{
@@ -9,12 +11,11 @@ window.geo = function() {
 			},
 			args
 		);
-		
+
 		chrome.hideOverlays();
 		chrome.hideContent();
 		$("#nearby-overlay").localize().show();
-		chrome.doFocusHack();
-		
+
 		if (!geo.map) {
 			// Disable webkit 3d CSS transformations for tile positioning
 			// Causes lots of flicker in PhoneGap for some reason...
@@ -23,16 +24,25 @@ window.geo = function() {
 			//var tiles = new L.TileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 			var tiles = new L.TileLayer('http://otile{s}.mqcdn.com/tiles/1.0.0/osm/{z}/{x}/{y}.png', {
 				maxZoom: 18,
-				subdomains: '1234', // for MapQuest tiles
-				//attribution: 'Map data &copy; 2011 OpenStreetMap contributors'
-				attribution: 'Tiles Courtesy of <a href="http://www.mapquest.com/" target="_blank">MapQuest</a> <img src="http://developer.mapquest.com/content/osm/mq_logo.png">. Map data &copy; 2012 OpenStreetMap contributors'
+				subdomains: '1234' // for MapQuest tiles
 			});
 			geo.map.addLayer(tiles);
+
+			geo.map.attributionControl.setPrefix("");
+			geo.map.attributionControl.addAttribution('<span class="map-attribution">' + mw.message("attribution-mapquest") + '</span>');
+			geo.map.attributionControl.addAttribution("<br /><span class='map-attribution'>" + mw.message("attribution-osm") + '</span>');
+
+			$(".map-attribution a").bind('click', function(event) {
+				// Force web links to open in external browser
+				// instead of the app, where navigation will be broken.
+				chrome.openExternalLink(this.href);
+				event.preventDefault();
+			});
 		}
 
 		// @fixme load last-seen coordinates
 		geo.map.setView(new L.LatLng(args.lat, args.lon), 18);
-		
+
 		var findAndDisplayNearby = function( lat, lon ) {
 			geoLookup( lat, lon, preferencesDB.get("language"), function( data ) {
 				geoAddMarkers( data );
@@ -40,12 +50,12 @@ window.geo = function() {
 				console.log(JSON.stringify(err));
 			});
 		};
-		
+
 		var ping = function() {
 			var pos = geo.map.getCenter();
 			findAndDisplayNearby( pos.lat, pos.lng );
 		};
-		
+
 		if ( args.current ) {
 			geo.map.on('viewreset', ping);
 			geo.map.on('locationfound', ping);
@@ -56,27 +66,27 @@ window.geo = function() {
 			findAndDisplayNearby( args.lat, args.lon );
 		}
 	}
-	
+
 	function getFloatFromDMS( dms ) {
 		var multiplier = /[sw]/i.test( dms ) ? -1 : 1;
 		var bits = dms.match(/[\d.]+/g);
 
 		var coord = 0;
-		
+
 		for ( var i = 0, iLen=bits.length; i<iLen; i++ ) {
 			coord += bits[i] / multiplier;
 			multiplier *= 60;
 		}
-		
+
 		return coord;
 	}
-	
+
 	function addShowNearbyLinks() {
-		$( 'span.geo-dms' ).each( function() { 
+		$( 'span.geo-dms' ).each( function() {
 			var $coords = $( this ),
 			lat = $coords.find( 'span.latitude' ).text(),
 			lon = $coords.find( 'span.longitude' ).text();
-			
+
 			$coords.closest( 'a' ).attr( 'href', '#' ).click( function() {
 				showNearbyArticles( {
 					'lat': getFloatFromDMS( lat ),
@@ -86,7 +96,7 @@ window.geo = function() {
 			} );
 		} );
 	}
-	
+
 	function geoLookup(latitude, longitude, lang, success, error) {
 		var requestUrl = "http://ws.geonames.net/findNearbyWikipediaJSON?formatted=true&";
 		requestUrl += "lat=" + latitude + "&";
@@ -101,31 +111,29 @@ window.geo = function() {
 			error: error
 		});
 	}
-	
+
 	function geoAddMarkers( data ) {
-		if (geo.markers) {
-			geo.map.removeLayer(geo.markers);
-		}
-		geo.markers = new L.LayerGroup();
 		$.each(data.geonames, function(i, item) {
-			var url = item.wikipediaUrl.replace(/^([a-z0-9-]+)\.wikipedia\.org/, 'https://$1.m.wikipedia.org');
-			var marker = new L.Marker(new L.LatLng(item.lat, item.lng));
-			geo.markers.addLayer(marker);
-			if(!item.summary) {
-				item.summary = "";
+			var summary, html,
+				url = item.wikipediaUrl.replace(/^([a-z0-9-]+)\.wikipedia\.org/, window.PROTOCOL + '://$1.m.wikipedia.org');
+			if($.inArray(url, shownURLs) === -1) {
+				var marker = new L.Marker(new L.LatLng(item.lat, item.lng));
+				summary = item.summary || '';
+
+				html = "<div><strong>" + item.title + "</strong><p>" + summary + "</p></div>";
+				var popupContent = $(html).click(function() {
+					app.navigateToPage(url, {hideCurrent: true});
+				})[0];
+				marker.bindPopup(popupContent, {closeButton: false});
+				geo.map.addLayer(marker);
+				shownURLs.push(url);
 			}
-			marker.bindPopup('<div onclick="app.navigateToPage(&quot;' + url + '&quot;);chrome.hideOverlays();">' +
-			                 '<strong>' + item.title + '</strong>' +
-			                 '<p>' + item.summary + '</p>' +
-			                 '</div>');
 		});
-		geo.map.addLayer(geo.markers);
 	}
-	
+
 	return {
 		showNearbyArticles: showNearbyArticles,
 		addShowNearbyLinks: addShowNearbyLinks,
-		markers: null,
 		map: null
 	};
 

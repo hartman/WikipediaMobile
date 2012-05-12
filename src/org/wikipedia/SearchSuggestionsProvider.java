@@ -1,6 +1,7 @@
 package org.wikipedia;
 
 import java.net.URLEncoder;
+import java.util.Locale;
 
 import org.json.JSONArray;
 
@@ -29,26 +30,37 @@ public class SearchSuggestionsProvider extends ContentProvider {
 		return true;
 	}
 
+	private String getDefaultLanguage() {
+		// Returns default language to be used. 
+		// Takes default system language, and does minor fixes so that they match the languages wikipedia uses
+		String locale = Locale.getDefault().getLanguage();
+		String language = locale.split("-")[0];
+		if(language == "iw") {
+			// Java (and Android) think Hebrew is iw, while it actually is he
+			language = "he";
+		}
+		return language;
+	}
 	@Override
 	public Cursor query(Uri uri, String[] projection, String selection, String[] selectionArgs, String sortOrder) {
 		String query = uri.getLastPathSegment();
 		try {
 			SharedPreferences settings = this.getContext().getSharedPreferences(PreferencesPlugin.PREFS_NAME, Context.MODE_PRIVATE);
-			String lang = settings.getString("language", "en");
+			String lang = settings.getString("language", getDefaultLanguage());
 
-			String[] columnNames = {BaseColumns._ID, SearchManager.SUGGEST_COLUMN_TEXT_1, SearchManager.SUGGEST_COLUMN_INTENT_DATA};
+			String[] columnNames = { BaseColumns._ID, SearchManager.SUGGEST_COLUMN_TEXT_1, SearchManager.SUGGEST_COLUMN_INTENT_DATA };
 			MatrixCursor cursor = new MatrixCursor(columnNames);
 			String content = HttpApi.getContent("http://" + lang + ".wikipedia.org/w/api.php?action=opensearch&limit=10&namespace=0&format=json&search=" + URLEncoder.encode(query, "UTF-8"));
 			JSONArray response = new JSONArray(content);
 			JSONArray suggestions = response.getJSONArray(1);
 			int lenght = suggestions.length();
-			for(int i = 0; i < lenght; i++) {
+			for (int i = 0; i < lenght; i++) {
 				String suggestion = suggestions.getString(i);
-				String[] row = {String.valueOf(i), suggestion, "http://" + lang + ".m.wikipedia.org/wiki/" + suggestion};
+				String[] row = { String.valueOf(i), suggestion, "http://" + lang + ".m.wikipedia.org/wiki/" + suggestion };
 				cursor.addRow(row);
 			}
 			return cursor;
-		} catch(Exception e) {
+		} catch (Exception e) {
 			Log.e("SearchSuggestionsProvider", e.getMessage());
 			return null;
 		}
