@@ -29,6 +29,7 @@ window.app = function() {
 				d.reject(err);
 			});
 		});
+		return d;
 	}
 
 	function loadCachedPage (url, title, lang) {
@@ -74,6 +75,7 @@ window.app = function() {
 		appHistory.addCurrentPage();
 		chrome.toggleMoveActions();
 		geo.addShowNearbyLinks();
+		chrome.initContentLinkHandlers("#main");
 		$("#page-footer").show();
 		chrome.showContent();
 		chrome.hideSpinner();

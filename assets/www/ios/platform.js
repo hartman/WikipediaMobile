@@ -6,13 +6,12 @@ if(navigator.userAgent.match(/OS 4_2/g)) {
 }
 
 function getAboutVersionString() {
-	return "3.2beta2";
+	return "3.2RC1";
 }
 
 (function() {
 	var iOSCREDITS = [
 		"<a href='https://github.com/phonegap/phonegap-plugins/tree/master/iPhone/ActionSheet'>PhoneGap ActionSheet plugin</a>, <a href='http://www.opensource.org/licenses/MIT'>MIT License</a>",
-		"<a href='https://github.com/devgeeks/ReadItLaterPlugin'>PhoneGap ReadItLater Plugin</a>, <a href='http://www.opensource.org/licenses/MIT'>MIT License</a>",
 		"<a href='https://github.com/davejohnson/phonegap-plugin-facebook-connect'>PhoneGap Facebook Connect Plugin</a>, <a href='http://www.opensource.org/licenses/MIT'>MIT License</a>",
 		"<a href='https://github.com/facebook/facebook-ios-sdk'>Facebook iOS SDK</a>, <a href='http://www.apache.org/licenses/LICENSE-2.0.html'>Apache License 2.0</a>",
 		"<a href='http://stig.github.com/json-framework/'>SBJSON</a>, <a href='http://www.opensource.org/licenses/bsd-license.php'>New BSD License</a>"
@@ -33,18 +32,25 @@ app.loadCachedPage = function (url) {
 	});
 }
 
-savedPages.doSave = function() {
+savedPages.doSave = function(options) {
+	var d = $.Deferred();
 	var url = app.curPage.getAPIUrl();
 	var data = JSON.stringify(app.curPage);
 	chrome.showSpinner();
 	$.each(app.curPage.sections, function(i, section) {
 		chrome.populateSection(section.id);
 	});
-	urlCache.saveCompleteHtml(url, data, $("#main")).then(function() {
-		chrome.showNotification(mw.message('page-saved', app.curPage.title).plain());
+	urlCache.saveCompleteHtml(url, data, $("#main")).done(function() {
+		if(!options.silent) {
+			chrome.showNotification(mw.message('page-saved', app.curPage.title).plain());
+		}
 		app.track('mobile.app.wikipedia.save-page');
 		chrome.hideSpinner();
+		d.resolve();
+	}).fail(function() {
+		d.reject()
 	});
+	return d;
 }
 
 // @Override
@@ -58,18 +64,6 @@ function popupMenu(items, callback, options) {
 		options.height = $origin.height();
 	}
 	window.plugins.actionSheet.create('', items, callback, options);
-}
-
-function shareRIL() {
-	var url = app.getCurrentUrl().replace('.m.', '.');
-	var title = app.getCurrentTitle();
-
-	window.plugins.readItLaterPlugin.saveToReadItLater(function() {
-		console.log("Successfully saved!");
-	}, {
-		url: url,
-		title: title
-	});
 }
 
 chrome.addPlatformInitializer(function() {
@@ -89,15 +83,14 @@ function showPageActions(origin) {
 	var pageActions = [
 		mw.msg('menu-savePage'),
 		mw.msg('menu-ios-open-safari'),
-		mw.msg('menu-share-ril'),
 		mw.msg('menu-share-fb'),
 		mw.msg('menu-cancel')
 	];
 	// iOS less than 5 does not have Twitter. 
-	var cancelIndex = 4;
+	var cancelIndex = 3;
 	if(navigator.userAgent.match(/OS 5/g)) {
 		pageActions.splice(pageActions.length - 1, 0, mw.msg('menu-share-twitter'));
-		cancelIndex = 5;
+		cancelIndex = 4;
 	}
 	popupMenu(pageActions, function(value, index) {
 		if (index == 0) {
@@ -105,10 +98,8 @@ function showPageActions(origin) {
 		} else if (index == 1) {
 			shareSafari();
 		} else if (index == 2) {
-			shareRIL();
-		} else if (index == 3) {
 			shareFB();
-		} else if (index == 4 && cancelIndex != 4) {
+		} else if (index == 3 && cancelIndex != 3) {
 			shareTwitter();
 		}
 	}, {

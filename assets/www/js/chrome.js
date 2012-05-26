@@ -33,7 +33,7 @@ window.chrome = function() {
 		}
 		$("#main").html(page.toHtml());
 
-		MobileFrontend.references.init($("#main")[0], false, {animation: 'none'});
+		MobileFrontend.references.init($("#main")[0], false, {animation: 'none', onClickReference: onClickReference});
 		handleSectionExpansion();
 	}
 
@@ -139,18 +139,31 @@ window.chrome = function() {
 
 			$(".closeButton").bind('click', showContent);
 			// Initialize Reference reveal with empty content
-			MobileFrontend.references.init($("#content")[0], true);
+			MobileFrontend.references.init($("#content")[0], true, {onClickReference: onClickReference} );
 
-			initContentLinkHandlers();
-			chrome.loadFirstPage();
-			chrome.setupFastClick("header, .titlebar");
+			app.setFontSize(preferencesDB.get('fontSize'));
+			chrome.initContentLinkHandlers("#main");
+			savedPages.doMigration().done(function() {
+				chrome.loadFirstPage().done(function() {
+					$("#migrating-saved-pages-overlay").hide();
+				});
+			}).fail(function() {
+				navigator.notification.alert(mw.msg('migrating-saved-pages-failed'), function() {
+					$("#migrating-saved-pages-overlay").hide();
+				});
+				chrome.loadFirstPage();
+			});
 		});
 
 	}
 
+	// Bind to links inside reference reveal, handle them properly
+	function onClickReference() {
+			chrome.initContentLinkHandlers("#mf-references");
+	}
+
 	function loadFirstPage() {
-		// NOP
-		// Overriden in Android for loading URLs from intents
+		return app.loadMainPage();
 	}
 
 	function isTwoColumnView() {
@@ -253,9 +266,8 @@ window.chrome = function() {
 		});
 	}
 
-	function initContentLinkHandlers() {
-		app.setFontSize(preferencesDB.get('fontSize'));
-		$('#main').delegate('a', 'click', function(event) {
+	function initContentLinkHandlers(selector) {
+		$(selector).delegate('a', 'click', function(event) {
 			var target = this,
 				url = target.href,             // expanded from relative links for us
 				href = $(target).attr('href'); // unexpanded, may be relative
@@ -310,6 +322,7 @@ window.chrome = function() {
 		confirm: confirm,
 		setupScrolling: setupScrolling,
 		scrollTo: scrollTo,
-		populateSection: populateSection
+		populateSection: populateSection,
+		initContentLinkHandlers: initContentLinkHandlers
 	};
 }();

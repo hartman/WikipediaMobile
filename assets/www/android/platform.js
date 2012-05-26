@@ -20,7 +20,7 @@ l10n.navigatorLang = function(success) {
 }
 
 function getAboutVersionString() {
-	return "1.2beta2";
+	return "1.2RC1";
 }
 
 (function() {
@@ -90,20 +90,35 @@ chrome.addPlatformInitializer(function() {
 	// For first time loading
 	var origLoadFirstPage = chrome.loadFirstPage;
 	chrome.loadFirstPage = function() {
+		var d = $.Deferred();
 		plugins.webintent.getIntentData(function(args) {
 			if(args.action == "android.intent.action.VIEW" && args.uri) {
-				app.navigateToPage(args.uri);
+				app.navigateToPage(args.uri).done(function() {
+					d.resolve.apply(arguments);
+				}).fail(function() {
+					d.reject.apply(arguments);
+				});
 			} else if(args.action == "android.intent.action.SEARCH") {
 				plugins.webintent.getExtra("query", 
 					function(query) {
-						search.performSearch(query, false);
+						search.performSearch(query, false).done(function() {
+							d.resolve.apply(arguments);
+						}).fail(function() {
+							d.reject.apply(arguments);
+						});
 					}, function(err) {
 						console.log("Error in search!");
+						d.reject();
 					});
 			} else {
-				origLoadFirstPage();
+				origLoadFirstPage().done(function() {
+					d.resolve.apply(arguments);
+				}).fail(function() {
+					d.reject.apply(arguments);
+				});
 			}
 		});
+		return d;
 	};
 
 	// Used only if we switch to singleTask
@@ -186,7 +201,7 @@ window.preferencesDB.addOnSet(function(id, value) {
 	window.plugins.preferences.set(id, value, function(){}, function(){});
 });
 
-savedPages.doSave = function() {
+savedPages.doSave = function(options) {
 	console.log("Saving page");
 	chrome.showSpinner();
 	var page = app.curPage;
@@ -201,17 +216,21 @@ savedPages.doSave = function() {
 				},
 				function() {
 					console.log("Error in image saving");
+					d.reject();
 				}
 			);
 		});
 		app.track('mobile.app.wikipedia.save-page');
-		chrome.showNotification(mw.message('page-saved', app.curPage.title).plain());
+		if(!options.silent) {
+			chrome.showNotification(mw.message('page-saved', app.curPage.title).plain());
+		}
 		chrome.hideSpinner();
 		d.resolve();
 	}
 	var gotError = function(uri, error) {
 		console.log('Error: ' + JSON.stringify(error));
 		chrome.hideSpinner();
+		d.reject();
 	}
 	$.each(app.curPage.sections, function(i, section) {
 		chrome.populateSection(section.id);
