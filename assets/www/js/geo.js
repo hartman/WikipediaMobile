@@ -55,6 +55,8 @@ window.geo = function() {
 			geoLookup( lat, lon, preferencesDB.get("language"), function( data ) {
 				geoAddMarkers( data );
 			}, function(err) {
+				chrome.popupErrorMessage("error");
+				chrome.showContent();
 				console.log(JSON.stringify(err));
 			});
 		};
@@ -68,7 +70,11 @@ window.geo = function() {
 			geo.map.on('viewreset', ping);
 			geo.map.on('locationfound', ping);
 			geo.map.on('moveend', ping);
-			geo.map.locateAndSetView(18, {enableHighAccuracy: true});
+			geo.map.locate({
+				setView: true,
+				maxZoom: 18,
+				enableHighAccuracy: true
+			});
 		}
 		else {
 			findAndDisplayNearby( args.lat, args.lon );

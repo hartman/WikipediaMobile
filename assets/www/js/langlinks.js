@@ -11,7 +11,7 @@ window.languageLinks = function() {
 
 	function showLangLinks(page) {
 		chrome.showSpinner();
-		page.requestLangLinks().done(function(langLinks) {
+		var req = page.requestLangLinks().done(function(langLinks) {
 			var template = templates.getTemplate("language-links-template");
 			app.getWikiMetadata().done(function(wikis) {
 				$.each(langLinks, function(i, link) {
@@ -30,10 +30,16 @@ window.languageLinks = function() {
 
 				chrome.setupScrolling('#langlinks .scroller');
 			});
-		}).fail(function(err, xhr) {
+		}).fail(function(err, textStatus) {
+			if(textStatus === "abort") {
+				// User cancelled action. Do nothing!
+				console.log("User cancelled langlinks view");
+				return;
+			}
 			chrome.hideSpinner();
 			chrome.popupErrorMessage(xhr);
 		});
+		chrome.setSpinningReq(req);
 	}
 
 	return {

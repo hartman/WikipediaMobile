@@ -20,7 +20,7 @@ l10n.navigatorLang = function(success) {
 }
 
 function getAboutVersionString() {
-	return "1.2RC1";
+	return "1.3beta1";
 }
 
 (function() {
@@ -56,11 +56,14 @@ chrome.scrollTo = function(selector, posY) {
 }
 
 chrome.addPlatformInitializer(function() {
-	$('html').addClass('android');
-	if (navigator.userAgent.match(/Android 2\./)) {
+	if ($('html').hasClass('android-2')) {
 		// Android 2.2/2.3 doesn't do overflow:scroll
 		// so we need to engage alternate styles for phone view.
 		$('html').removeClass('goodscroll').addClass('badscroll');
+	} else {
+		// On Android 3.0 or newer, selecting text is supported natively, so we do not
+		// need the menu option
+		$('#selectTextCmd').remove();
 	}
 
     document.addEventListener("backbutton", onBackButton, false);
@@ -232,9 +235,43 @@ savedPages.doSave = function(options) {
 		chrome.hideSpinner();
 		d.reject();
 	}
+
+	var populateSectionDeferreds = [];
 	$.each(app.curPage.sections, function(i, section) {
-		chrome.populateSection(section.id);
+		populateSectionDeferreds.push( chrome.populateSection( section.id ) );
 	});
-	window.plugins.urlCache.getCachedPathForURI(page.getAPIUrl(), gotPath, gotError);
+	$.when.apply( $, populateSectionDeferreds ).done( function() {
+		window.plugins.urlCache.getCachedPathForURI( page.getAPIUrl(), gotPath, gotError );
+	});
+	return d;
+}
+
+app.loadCachedPage = function( url, title, lang ) {
+	chrome.showSpinner();
+	var d = $.Deferred();
+	var replaceRes = function() {
+		// images
+		$( '#main img' ).each( function() {
+			var em = $( this );
+			var gotLinkPath = function( linkPath ) {
+				em.attr( 'src', 'file://' + linkPath.file );
+			}
+			var target = this.src.replace( 'file:', window.PROTOCOL + ':' );
+			window.plugins.urlCache.getCachedPathForURI( target, gotLinkPath, gotError );
+		});
+	};
+	var gotPath = function( cachedPage ) {
+		$.get( 'file://' + cachedPage.file ).then( function( data ) {
+			var page = new Page( title, JSON.parse( data ), lang, true );
+			replaceRes();
+			app.setCurrentPage( page );
+			d.resolve();
+		});
+	}
+	var gotError = function( error ) {
+		console.log( 'Error: ' + error );
+		chrome.hideSpinner();
+	}
+	window.plugins.urlCache.getCachedPathForURI( url, gotPath, gotError );
 	return d;
 }

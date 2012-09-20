@@ -7,9 +7,9 @@
 // MIT Licensed
 
 #import <Foundation/Foundation.h>
-#import <PhoneGap/PGPlugin.h>
+#import "CDVDeprecated.h"
 
-@interface ActionSheet : PGPlugin <UIActionSheetDelegate> {
+@interface ActionSheet : CDVPlugin <UIActionSheetDelegate> {
     
 	NSString* callbackID;
 

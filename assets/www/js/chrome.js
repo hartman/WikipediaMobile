@@ -1,9 +1,22 @@
 window.chrome = function() {
 
+	// Request that is currently causing the spinner to spin
+	var curSpinningReq = null;
+
 	// List of functions to be called on a per-platform basis before initialize
 	var platform_initializers = [];
 	function addPlatformInitializer(fun) {
 		platform_initializers.push(fun);
+	}
+
+	function setSpinningReq(req) {
+		curSpinningReq = req;
+		req.done(function() {
+			curSpinningReq = null;
+		}).fail(function() {
+			curSpinningReq = null;
+		});
+		return req;
 	}
 
 	function showSpinner() {
@@ -19,7 +32,7 @@ window.chrome = function() {
 	}
 
 	function isSpinning() {
-		$('#search').hasClass('inProgress');
+		return $('#search').hasClass('inProgress');
 	}
 
 	function renderHtml(page) {
@@ -33,25 +46,35 @@ window.chrome = function() {
 		}
 		$("#main").html(page.toHtml());
 
-		MobileFrontend.references.init($("#main")[0], false, {animation: 'none', onClickReference: onClickReference});
+		chrome.initContentLinkHandlers("#main");
+		mw.mobileFrontend.references.init($("#main")[0], false, {animation: 'none', onClickReference: onClickReference});
 		handleSectionExpansion();
 	}
 
 	function populateSection(sectionID) {
-		var $contentBlock = $("#content_" + sectionID);
+		var d = $.Deferred();
+		var selector = "#content_" + sectionID;
+		var $contentBlock = $(selector);
 		if(!$contentBlock.data('populated')) {
-			var sectionHtml = app.curPage.getSectionHtml(sectionID);
-			$contentBlock.append($(sectionHtml)).data('populated', true);
-			MobileFrontend.references.init($contentBlock[0], false, {animation: 'none'});
-		} 
+			app.curPage.requestSectionHtml( sectionID ).done( function( sectionHtml ) {
+				$contentBlock.append( $( sectionHtml ) ).data( 'populated', true );
+				chrome.initContentLinkHandlers( selector );
+				mw.mobileFrontend.references.init( $contentBlock[0], false, { animation: 'none', onClickReference: onClickReference } );
+				d.resolve();
+			});
+		} else {
+			d.resolve();
+		}
+		return d;
 	}
 
 	function handleSectionExpansion() {
 		$(".section_heading").click(function() {
 			var sectionID = $(this).data('section-id');
-			chrome.populateSection(sectionID);
-			MobileFrontend.toggle.wm_toggle_section(sectionID);
-			chrome.setupScrolling("#content");
+			chrome.populateSection(sectionID).done(function() {
+				mw.mobileFrontend.toggle.wm_toggle_section( sectionID );
+				chrome.setupScrolling( "#content" );
+			});
 		});
 	}
 
@@ -104,6 +127,16 @@ window.chrome = function() {
 					app.navigateTo(window.LICENSEPAGE, "en");
 					return false;
 				});
+				savedPages.doMigration().done(function() {
+					chrome.loadFirstPage().done(function() {
+						$("#migrating-saved-pages-overlay").hide();
+					});
+				}).fail(function() {
+					navigator.notification.alert(mw.msg('migrating-saved-pages-failed'), function() {
+						$("#migrating-saved-pages-overlay").hide();
+					});
+					chrome.loadFirstPage();
+				});
 			});
 			l10n.initLanguages();
 
@@ -114,7 +147,15 @@ window.chrome = function() {
 				return false;
 			});
 			$("#searchForm").bind('submit', function() {
-				window.search.performSearch($("#searchParam").val(), false);
+				if(isSpinning()) {
+					if(curSpinningReq !== null) {
+						curSpinningReq.abort();
+						curSpinningReq = null;
+						chrome.hideSpinner();
+					}
+				} else {
+					search.performSearch($("#searchParam").val(), false);
+				}
 				return false;
 			}).bind('keypress', function(event) {
 				if(event.keyCode == 13)
@@ -139,20 +180,9 @@ window.chrome = function() {
 
 			$(".closeButton").bind('click', showContent);
 			// Initialize Reference reveal with empty content
-			MobileFrontend.references.init($("#content")[0], true, {onClickReference: onClickReference} );
+			mw.mobileFrontend.references.init($("#content")[0], true, {onClickReference: onClickReference} );
 
 			app.setFontSize(preferencesDB.get('fontSize'));
-			chrome.initContentLinkHandlers("#main");
-			savedPages.doMigration().done(function() {
-				chrome.loadFirstPage().done(function() {
-					$("#migrating-saved-pages-overlay").hide();
-				});
-			}).fail(function() {
-				navigator.notification.alert(mw.msg('migrating-saved-pages-failed'), function() {
-					$("#migrating-saved-pages-overlay").hide();
-				});
-				chrome.loadFirstPage();
-			});
 		});
 
 	}
@@ -267,13 +297,12 @@ window.chrome = function() {
 	}
 
 	function initContentLinkHandlers(selector) {
-		$(selector).delegate('a', 'click', function(event) {
+		$(selector).find('a').unbind('click').bind('click', function(event) {
 			var target = this,
 				url = target.href,             // expanded from relative links for us
 				href = $(target).attr('href'); // unexpanded, may be relative
 
 			event.preventDefault();
-
 			if (url.match(new RegExp("^https?://([^/]+)\." + PROJECTNAME + "\.org/wiki/"))) {
 				// ...and load it through our intermediate cache layer.
 				app.navigateToPage(url);
@@ -304,6 +333,7 @@ window.chrome = function() {
 		initialize: initialize,
 		renderHtml: renderHtml,
 		loadFirstPage: loadFirstPage,
+		setSpinningReq: setSpinningReq,
 		showSpinner: showSpinner,
 		hideSpinner: hideSpinner,
 		isSpinning: isSpinning,

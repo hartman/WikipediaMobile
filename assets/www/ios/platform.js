@@ -6,7 +6,7 @@ if(navigator.userAgent.match(/OS 4_2/g)) {
 }
 
 function getAboutVersionString() {
-	return "3.2RC1";
+	return "3.3beta1";
 }
 
 (function() {
@@ -24,7 +24,7 @@ function getAboutVersionString() {
 app.loadCachedPage = function (url) {
 	return urlCache.getCachedData(url).then(function(data) {
 		var pageData = JSON.parse(data);
-		var page = new Page(pageData.title, pageData.lead, pageData.sections, pageData.lang);
+		var page = Page.deserializeFrom( pageData );
 		app.setCurrentPage(page);
 	}).fail(function(error) {
 		console.log('Error: ' + error);
@@ -35,20 +35,25 @@ app.loadCachedPage = function (url) {
 savedPages.doSave = function(options) {
 	var d = $.Deferred();
 	var url = app.curPage.getAPIUrl();
-	var data = JSON.stringify(app.curPage);
+	var data = app.curPage.serialize();
 	chrome.showSpinner();
+
+	var populateSectionDeferreds = [];
 	$.each(app.curPage.sections, function(i, section) {
-		chrome.populateSection(section.id);
+		populateSectionDeferreds.push( chrome.populateSection( section.id ) );
 	});
-	urlCache.saveCompleteHtml(url, data, $("#main")).done(function() {
-		if(!options.silent) {
-			chrome.showNotification(mw.message('page-saved', app.curPage.title).plain());
-		}
-		app.track('mobile.app.wikipedia.save-page');
-		chrome.hideSpinner();
-		d.resolve();
-	}).fail(function() {
-		d.reject()
+
+	$.when.apply( $, populateSectionDeferreds ).done( function() {
+		urlCache.saveCompleteHtml( url, data, $( "#main" ) ).done( function() {
+			if( !options.silent ) {
+				chrome.showNotification( mw.message( 'page-saved', app.curPage.title ).plain() );
+			}
+			app.track( 'mobile.app.wikipedia.save-page' );
+			chrome.hideSpinner();
+			d.resolve();
+		}).fail( function() {
+			d.reject()
+		});
 	});
 	return d;
 }
@@ -68,6 +73,7 @@ function popupMenu(items, callback, options) {
 
 chrome.addPlatformInitializer(function() {
 	console.log("Logging in!");
+    window.plugins.FB = CDV.FB;
 	window.plugins.FB.init("[FB-APP-ID]", function() {
 		console.log("failed FB init:(");
 	});
@@ -84,13 +90,14 @@ function showPageActions(origin) {
 		mw.msg('menu-savePage'),
 		mw.msg('menu-ios-open-safari'),
 		mw.msg('menu-share-fb'),
+        mw.msg('menu-share-mail'),
 		mw.msg('menu-cancel')
 	];
 	// iOS less than 5 does not have Twitter. 
-	var cancelIndex = 3;
+	var cancelIndex = 4;
 	if(navigator.userAgent.match(/OS 5/g)) {
-		pageActions.splice(pageActions.length - 1, 0, mw.msg('menu-share-twitter'));
-		cancelIndex = 4;
+		pageActions.splice(pageActions.length - 2, 0, mw.msg('menu-share-twitter'));
+		cancelIndex = 5;
 	}
 	popupMenu(pageActions, function(value, index) {
 		if (index == 0) {
@@ -99,9 +106,11 @@ function showPageActions(origin) {
 			shareSafari();
 		} else if (index == 2) {
 			shareFB();
-		} else if (index == 3 && cancelIndex != 3) {
+		} else if (index == 3 && cancelIndex != 4) {
 			shareTwitter();
-		}
+        } else if (index == 4) {
+            shareMail();
+        }
 	}, {
 		cancelButtonIndex: cancelIndex,
 		origin: origin
@@ -147,6 +156,23 @@ function shareTwitter() {
 	});
 }
 
+function shareMail() {
+	var url = app.getCurrentUrl().replace( '.m.', '.' );
+	var title = app.getCurrentTitle();
+
+	window.plugins.emailComposer.showEmailComposerWithCB(
+		function( res ) {
+			console.log( "Mail compose result: " + res );
+		},
+		title,  // subject
+		url,    // body
+		null,   // toRecipients
+		null,   // ccRecipients
+		null,   // bccRecipients
+		false   // body is HTML
+	);
+}
+
 function shareSafari() {
 	// Use the full URL; on phones we'll autodetect mobile on the other end...
 	// on iPad we'll want to actually show the desktop version through.
@@ -182,7 +208,7 @@ if(navigator.userAgent.match(/OS 4/)) {
 		var $el = $(selector);
 		var scroller = $el[0].scroller;
 		if(scroller) {
-			scroller.scrollTo(0, offsetY, 200);
+			scroller.scrollTo(0, offsetY, 0);
 		}
 	};
 }

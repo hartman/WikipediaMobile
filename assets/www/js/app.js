@@ -23,7 +23,7 @@ window.app = function() {
 
 		app.getWikiMetadata().done(function(wikis) {
 			var mainPage = wikis[lang].mainPage;
-			app.navigateTo(mainPage, lang).done(function(data) {
+			app.navigateTo( mainPage, lang, { isCompletePage: true } ).done( function( data ) {
 				d.resolve(data);
 			}).fail(function(err) {
 				d.reject(err);
@@ -32,36 +32,8 @@ window.app = function() {
 		return d;
 	}
 
-	function loadCachedPage (url, title, lang) {
-		chrome.showSpinner();
-		var d = $.Deferred();
-		var replaceRes = function() {
-
-			// images
-			$('#main img').each(function() {
-				var em = $(this);
-				var gotLinkPath = function(linkPath) {
-					em.attr('src', 'file://' + linkPath.file);
-				}
-				var target = this.src.replace('file:', window.PROTOCOL + ':');
-				window.plugins.urlCache.getCachedPathForURI(target, gotLinkPath, gotError);
-			});
-		};
-		var gotPath = function(cachedPage) {
-			
-			$.get('file://' + cachedPage.file).then(function(data) {
-				var page = Page.fromRawJSON(title, JSON.parse(data), lang);
-				replaceRes();
-				setCurrentPage(page);
-				d.resolve();
-			});
-		}
-		var gotError = function(error) {
-			console.log('Error: ' + error);
-			chrome.hideSpinner();
-		}
-		window.plugins.urlCache.getCachedPathForURI(url, gotPath, gotError);
-		return d;
+	function loadCachedPage( url, title, lang ) {
+		// Overriden by platform specific implementations;
 	}
 
 	function setCurrentPage(page) {
@@ -75,7 +47,6 @@ window.app = function() {
 		appHistory.addCurrentPage();
 		chrome.toggleMoveActions();
 		geo.addShowNearbyLinks();
-		chrome.initContentLinkHandlers("#main");
 		$("#page-footer").show();
 		chrome.showContent();
 		chrome.hideSpinner();
@@ -94,20 +65,31 @@ window.app = function() {
 		app.curPage = null;
 	}
 
-	function loadPage(title, language) {
+	function loadPage( title, language, isCompletePage ) {
 		var d = $.Deferred();
 
 		function doRequest() {
-			Page.requestFromTitle(title, language).done(function(page) {
+			var req = Page.requestFromTitle( title, language, isCompletePage ).done( function( page ) {
 				if(page === null) {
 					setErrorPage(404);
 				}
 				setCurrentPage(page);
+				if( !page.isCompletePage ) {
+					page.requestCompletePage().done( function() {
+						console.log("Full page retreived!");
+					});
+				}
 				d.resolve(page);
-			}).fail(function(xhr) {
+			}).fail(function(xhr, textStatus, errorThrown) {
+				if(textStatus === "abort") {
+					// User cancelled action. Do nothing!
+					console.log("User cancelled action!");
+					return;
+				}
 				setErrorPage(xhr.status);	
 				d.reject(xhr);
 			});
+			chrome.setSpinningReq(req);
 		}
 
 		if(!navigator.onLine) {
@@ -164,7 +146,7 @@ window.app = function() {
 
 	function navigateTo(title, lang, options) {
 		var d = $.Deferred();
-		var options = $.extend({cache: false, updateHistory: true}, options || {});
+		var options = $.extend( {cache: false, updateHistory: true, isCompletePage: false}, options || {} );
 		var url = app.urlForTitle(title, lang);
 
 		if(title === "") {
@@ -185,11 +167,13 @@ window.app = function() {
 		if(title === "") {
 			title = "Main_Page"; // FIXME
 		}
-		d = app.loadPage(title, lang);
-		d.done(function() {
-			console.log("Navigating to " + title);
+		d = app.loadPage( title, lang, options.isCompletePage );
+		d.done(function(page) {
 			if(options.hideCurrent) {
 				$("#content").show();
+				// see http://forrst.com/posts/iOS_scrolling_issue_solved-rgX
+				// Fix for bug causing page to not scroll in iOS 5.x when visited from nearby
+				chrome.scrollTo("#content", 0);
 			}			
 		});
 		return d;
@@ -203,7 +187,7 @@ window.app = function() {
 
 	function getCurrentUrl() {
 		if(app.curPage) {
-			return app.urlForTitle(app.curPage.title);
+			return app.curPage.getCanonicalUrl();
 		} else {
 			return null;
 		}
@@ -229,17 +213,24 @@ window.app = function() {
 		}
 	}
 
-	function makeAPIRequest(params, lang, method) {
-		// Force JSON
-		params.format = 'json';
+	function makeAPIRequest(params, lang, extraOptions) {
+		params = params || {};
+		params.format = 'json'; // Force JSON
 		lang = lang || preferencesDB.get('language');
-		method = method || "GET";
 		var url = app.baseUrlForLanguage(lang) + '/w/api.php';
-		if(method === 'POST') {
-			return $.post(url, params);
-		} else {
-			return $.get(url, params);
-		}
+		var defaultOptions = {
+			url: url,
+			data: params,
+			// Making this 'text' and parsing the JSON ourselves makes things much easier
+			// Than making it as 'JSON' for pre-processing via dataFilter
+			// See https://forum.jquery.com/topic/datafilter-function-and-json-string-result-problems
+			dataType: 'text',
+			dataFilter: function(text) {
+				return JSON.parse(text);
+			}
+		};
+		var options = $.extend(defaultOptions, extraOptions);
+		return $.ajax(options);
 	}
 
 	function track(eventId) {

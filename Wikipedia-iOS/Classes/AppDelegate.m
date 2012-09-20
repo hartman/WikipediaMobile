@@ -28,13 +28,7 @@
 #import "AppDelegate.h"
 #import "MainViewController.h"
 
-#ifdef PHONEGAP_FRAMEWORK
-#import <PhoneGap/PGPlugin.h>
-#import <PhoneGap/PGURLProtocol.h>
-#else
-#import "PGPlugin.h"
-#import "PGURLProtocol.h"
-#endif
+#import "CDVDeprecated.h"
 
 /* 
  Returns YES if it is at least version specified as NSString(X)
@@ -143,7 +137,7 @@
     UIWebView *webView = [[UIWebView alloc] initWithFrame:CGRectZero];
     NSString *currentUserAgent = [webView stringByEvaluatingJavaScriptFromString:@"navigator.userAgent"];
     
-    NSDictionary *userAgentDictionary = [[NSDictionary alloc] initWithObjectsAndKeys:[NSString stringWithFormat:@"%@%@",@"WikipediaMobile/3.1 ",currentUserAgent], @"UserAgent", nil];
+    NSDictionary *userAgentDictionary = [[NSDictionary alloc] initWithObjectsAndKeys:[NSString stringWithFormat:@"%@%@",@"WikipediaMobile/3.3 ",currentUserAgent], @"UserAgent", nil];
     [webView release];
     
     [[NSUserDefaults standardUserDefaults] registerDefaults:userAgentDictionary];    

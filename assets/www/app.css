@@ -17,6 +17,12 @@ input:focus {
 	outline:none;
 }
 
+input {
+	/* Kills stupid overlay hiding spinner on several ICS phones */
+	/* see http://stackoverflow.com/questions/9005550/input-elements-on-android-4-x-can-not-be-styled-when-focused */
+	-webkit-user-modify: read-write-plaintext-only;
+}
+
 img {
 	border:0px;
 }
@@ -542,8 +548,16 @@ body[dir=rtl] #settingsList .item select {
 	background: url(image/ios/toolbar-back.png);
 }
 
+body[dir=rtl] #go-back span {
+	background: url(image/ios/toolbar-forward.png);
+}
+
 #go-forward span {
 	background: url(image/ios/toolbar-forward.png);
+}
+
+body[dir=rtl] #go-forward span {
+	background: url(image/ios/toolbar-back.png);
 }
 
 #read-in span {
@@ -768,4 +782,53 @@ the scrollable divs seem to be giving us lots of bugs
 	text-align: center;
 
 	font-size: 18px;
+}
+
+.leaflet-marker-pane,
+.leaflet-shadow-pane,
+.leaflet-overlay-pane {
+	/* hack to work around https://github.com/CloudMade/Leaflet/issues/335 */
+    -webkit-transform: translateZ(0px);
+}
+
+/* RTL section icons */
+body[dir=rtl] .section_heading button
+{
+	float: left;
+}
+
+body[dir=rtl]  .iconSavedPage,
+body[dir=rtl]  .iconHistory,
+body[dir=rtl]  .iconSearchResult {
+	right: 8px;
+	left: auto;
+}
+
+body[dir=rtl] .listItem .text {
+	right: 40px;
+	left: 16px;
+}
+
+body[dir=rtl] .deleteButton {
+	left: 0px;
+	right: auto;
+}
+
+body[dir=rtl] .cleanButton {
+	left: 0;
+	right: auto;
+}
+
+body[dir=rtl] .closeButton {
+	right: 0;
+	left: auto;
+	/* Mirror the back button so it points in the correct direction in RTL */
+	-moz-transform: scaleX(-1);
+	-webkit-transform: scaleX(-1);
+	transform: scaleX(-1);
+}
+
+body[dir=rtl] .titlebarItem {
+	padding-left: auto;
+	padding-right: 32px;
 }

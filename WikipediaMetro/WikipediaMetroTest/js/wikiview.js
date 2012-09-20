@@ -17,12 +17,13 @@
         var content = this._wikiview._element,
             left = content.scrollLeft,
             top = content.scrollTop,
-            children = content.children,
+            children = document.getElementById('subcontent').children,
             selected,
             selectedIndex;
         for (var i = 0; i < children.length; i++) {
             var child = children[i];
-            if (window.innerWidth <= 320) {
+            console.log(window.innerWidth);
+            if (window.innerWidth <= 700) {
                 if (child.offsetTop >= top) {
                     selected = child;
                     selectedIndex = i;
@@ -37,7 +38,9 @@
             }
         }
         if (selectedIndex === undefined) {
-            throw new Error('whoops');
+            //throw new Error('whoops');
+            selectedIndex = 0;
+            selected = children[0];
         }
         return WinJS.Promise.wrap({
             item: selectedIndex,
@@ -54,8 +57,8 @@
     positionItem: function (/*@override*/item, position) {
         var content = this._wikiview._element;
 
-        var section = content.children[item.index];
-        if (window.innerWidth <= 320) {
+        var section = document.getElementById('subcontent').children[item.index];
+        if (window.innerWidth <= 700) {
             content.scrollTop = section.offsetTop - 10;
         } else {
             content.scrollLeft = section.offsetLeft - 10;

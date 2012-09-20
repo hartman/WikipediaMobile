@@ -27,11 +27,7 @@
 
 #import <UIKit/UIKit.h>
 
-#ifdef PHONEGAP_FRAMEWORK
-    #import <PhoneGap/PGViewController.h>
-#else
-    #import "PGViewController.h"
-#endif
+#import "CDVDeprecated.h"
 
 
 @interface AppDelegate : NSObject < UIApplicationDelegate, UIWebViewDelegate, PGCommandDelegate > {

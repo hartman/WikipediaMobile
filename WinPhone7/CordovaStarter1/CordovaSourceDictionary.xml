@@ -31,6 +31,7 @@
     <FilePath Value="www\js\hogan.min.js"/>
     <FilePath Value="www\js\iscroll-lite.js"/>
     <FilePath Value="www\js\iscroll.js"/>
+    <FilePath Value="www\js\jquery-1.7.1.js"/>
     <FilePath Value="www\js\jquery-1.7.1.min.js"/>
     <FilePath Value="www\js\jquery.localize.js"/>
     <FilePath Value="www\js\l10n-setup.js"/>
@@ -52,6 +53,7 @@
     <FilePath Value="www\js\mediawiki.js"/>
     <FilePath Value="www\js\menu.js"/>
     <FilePath Value="www\js\mobilefrontend.js"/>
+    <FilePath Value="www\js\noclickdelay.js"/>
     <FilePath Value="www\js\page.js"/>
     <FilePath Value="www\js\platform-stub.js"/>
     <FilePath Value="www\js\preferences.js"/>
@@ -71,10 +73,13 @@
     <FilePath Value="www\leaflet\leaflet.css"/>
     <FilePath Value="www\leaflet\leaflet.ie.css"/>
     <FilePath Value="www\leaflet\leaflet.js"/>
-    <FilePath Value="www\MobileFrontend\stylesheets\beta_common.css"/>
+    <FilePath Value="www\MobileFrontend\javascripts\references.js"/>
+    <FilePath Value="www\MobileFrontend\javascripts\toggle.js"/>
+    <FilePath Value="www\MobileFrontend\stylesheets\common.css"/>
     <FilePath Value="www\MobileFrontend\stylesheets\hacks.css"/>
     <FilePath Value="www\MobileFrontend\stylesheets\images\hide.png"/>
     <FilePath Value="www\MobileFrontend\stylesheets\images\show.png"/>
+    <FilePath Value="www\MobileFrontend\stylesheets\references.css"/>
     <FilePath Value="www\MobileFrontend\stylesheets\sections.css"/>
     <FilePath Value="www\winphone\cordova-1.6.1.js"/>
     <FilePath Value="www\winphone\platform.js"/>
@@ -152,7 +157,6 @@
     <FilePath Value="www\messages\messages-mr.properties"/>
     <FilePath Value="www\messages\messages-ms.properties"/>
     <FilePath Value="www\messages\messages-mt.properties"/>
-    <FilePath Value="www\messages\messages-nan.properties"/>
     <FilePath Value="www\messages\messages-nds-nl.properties"/>
     <FilePath Value="www\messages\messages-ne.properties"/>
     <FilePath Value="www\messages\messages-nl.properties"/>
@@ -202,6 +206,5 @@
     <FilePath Value="www\messages\messages-zh-hant.properties"/>
     <FilePath Value="www\messages\messages-zh-hk.properties"/>
     <FilePath Value="www\messages\messages-zh-tw.properties"/>
-    <FilePath Value="www\sitematrix.json"/>
     <FilePath Value="www\cordova-1.6.1.js"/>
 </CordovaSourceDictionary>

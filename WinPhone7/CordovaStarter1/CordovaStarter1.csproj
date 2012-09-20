@@ -168,6 +168,9 @@
     <Content Include="..\..\assets\www\js\iscroll.js">
       <Link>www\js\iscroll.js</Link>
     </Content>
+    <Content Include="..\..\assets\www\js\jquery-1.7.1.js">
+      <Link>www\js\jquery-1.7.1.js</Link>
+    </Content>
     <Content Include="..\..\assets\www\js\jquery-1.7.1.min.js">
       <Link>www\js\jquery-1.7.1.min.js</Link>
     </Content>
@@ -231,6 +234,9 @@
     <Content Include="..\..\assets\www\js\mobilefrontend.js">
       <Link>www\js\mobilefrontend.js</Link>
     </Content>
+    <Content Include="..\..\assets\www\js\noclickdelay.js">
+      <Link>www\js\noclickdelay.js</Link>
+    </Content>
     <Content Include="..\..\assets\www\js\page.js">
       <Link>www\js\page.js</Link>
     </Content>
@@ -288,8 +294,14 @@
     <Content Include="..\..\assets\www\leaflet\leaflet.js">
       <Link>www\leaflet\leaflet.js</Link>
     </Content>
-    <Content Include="..\..\assets\www\MobileFrontend\stylesheets\beta_common.css">
-      <Link>www\MobileFrontend\stylesheets\beta_common.css</Link>
+    <Content Include="..\..\assets\www\MobileFrontend\javascripts\references.js">
+      <Link>www\MobileFrontend\javascripts\references.js</Link>
+    </Content>
+    <Content Include="..\..\assets\www\MobileFrontend\javascripts\toggle.js">
+      <Link>www\MobileFrontend\javascripts\toggle.js</Link>
+    </Content>
+    <Content Include="..\..\assets\www\MobileFrontend\stylesheets\common.css">
+      <Link>www\MobileFrontend\stylesheets\common.css</Link>
     </Content>
     <Content Include="..\..\assets\www\MobileFrontend\stylesheets\hacks.css">
       <Link>www\MobileFrontend\stylesheets\hacks.css</Link>
@@ -299,6 +311,9 @@
     </Content>
     <Content Include="..\..\assets\www\MobileFrontend\stylesheets\images\show.png">
       <Link>www\MobileFrontend\stylesheets\images\show.png</Link>
+    </Content>
+    <Content Include="..\..\assets\www\MobileFrontend\stylesheets\references.css">
+      <Link>www\MobileFrontend\stylesheets\references.css</Link>
     </Content>
     <Content Include="..\..\assets\www\MobileFrontend\stylesheets\sections.css">
       <Link>www\MobileFrontend\stylesheets\sections.css</Link>
@@ -532,9 +547,6 @@
     <Content Include="..\..\assets\www\messages\messages-mt.properties">
       <Link>www\messages\messages-mt.properties</Link>
     </Content>
-    <Content Include="..\..\assets\www\messages\messages-nan.properties">
-      <Link>www\messages\messages-nan.properties</Link>
-    </Content>
     <Content Include="..\..\assets\www\messages\messages-nds-nl.properties">
       <Link>www\messages\messages-nds-nl.properties</Link>
     </Content>
@@ -681,9 +693,6 @@
     </Content>
     <Content Include="..\..\assets\www\messages\messages-zh-tw.properties">
       <Link>www\messages\messages-zh-tw.properties</Link>
-    </Content>
-    <Content Include="..\..\assets\www\sitematrix.json">
-      <Link>www\sitematrix.json</Link>
     </Content>
     <None Include="BuildManifestProcessor.js" />
     <Content Include="GapLib\WP7CordovaClassLib.dll" />

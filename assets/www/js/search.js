@@ -47,6 +47,7 @@ window.search = function() {
 				getSearchResults(suggestion, 'true');
 			}
 		}).fail(handleNetworkFailure);
+		chrome.setSpinningReq(curReq);
 	}
 
 	function getSuggestionFromSuggestionResults(suggestion_results) {
@@ -74,6 +75,7 @@ window.search = function() {
 			}
 			renderResults([term, searchResults], false);
 		}).fail(handleNetworkFailure);
+		chrome.setSpinningReq(curReq);
 		return curReq;
 	}
 
@@ -93,6 +95,7 @@ window.search = function() {
 				renderResults(results, didyoumean);
 			}
 		}).fail(handleNetworkFailure);
+		chrome.setSpinningReq(curReq);
 		return curReq;
 	}
 
@@ -134,13 +137,16 @@ window.search = function() {
 		});
 		chrome.hideSpinner();
 		chrome.hideOverlays();
+		$('#searchresults').localize().show();
 		if(!chrome.isTwoColumnView()) {
 			$("#content").hide(); // Not chrome.hideContent() since we want the header
 		} else {
 			$("html").addClass('overlay-open');
 		}
-		$('#searchresults').localize().show();
 		chrome.setupScrolling('#searchresults .scroller');
+		// see http://forrst.com/posts/iOS_scrolling_issue_solved-rgX
+		// Fix for bug causing page to not scroll in iOS 5.x when visited from nearby
+		chrome.scrollTo("#searchresults .scroller", 0);
 	}
 
 	return {

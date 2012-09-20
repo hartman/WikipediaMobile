@@ -53,7 +53,7 @@ if (platform == 'unknown') {
 	// Assume we're a generic web browser.
 	platform = 'web';
 } else {
-	includes.push('phonegap-1.4.1.js');
+	includes.push('cordova-1.7.0.js');
 	var plugins = {
 		android: [
 			'menu/menu.android.js',
@@ -67,9 +67,10 @@ if (platform == 'unknown') {
 			'preferences/preferences.js'
 		],
 		ios: [
+            'EmailComposer.js',
 			'ActionSheet.js',
 			'TwitterPlugin.js',
-			'pg-plugin-fb-connect.js',
+			'cdv-plugin-fb-connect.js',
 			'facebook_js_sdk.js'
 		],
 	};
