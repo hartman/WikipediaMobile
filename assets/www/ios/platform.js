@@ -6,12 +6,12 @@ if(navigator.userAgent.match(/OS 4_2/g)) {
 }
 
 function getAboutVersionString() {
-	return "3.3beta1";
+	return "3.3";
 }
 
 (function() {
 	var iOSCREDITS = [
-		"<a href='https://github.com/phonegap/phonegap-plugins/tree/master/iPhone/ActionSheet'>PhoneGap ActionSheet plugin</a>, <a href='http://www.opensource.org/licenses/MIT'>MIT License</a>",
+		"<a href='https://github.com/mgcrea/cordova-actionsheet'>Cordova ActionSheet plugin</a>, <a href='http://www.opensource.org/licenses/MIT'>MIT License</a>",
 		"<a href='https://github.com/davejohnson/phonegap-plugin-facebook-connect'>PhoneGap Facebook Connect Plugin</a>, <a href='http://www.opensource.org/licenses/MIT'>MIT License</a>",
 		"<a href='https://github.com/facebook/facebook-ios-sdk'>Facebook iOS SDK</a>, <a href='http://www.apache.org/licenses/LICENSE-2.0.html'>Apache License 2.0</a>",
 		"<a href='http://stig.github.com/json-framework/'>SBJSON</a>, <a href='http://www.opensource.org/licenses/bsd-license.php'>New BSD License</a>"
@@ -68,7 +68,8 @@ function popupMenu(items, callback, options) {
 		options.width = $origin.width();
 		options.height = $origin.height();
 	}
-	window.plugins.actionSheet.create('', items, callback, options);
+    options.items = items;
+	window.plugins.actionSheet.create(options, callback);
 }
 
 chrome.addPlatformInitializer(function() {
@@ -95,12 +96,16 @@ function showPageActions(origin) {
 	];
 	// iOS less than 5 does not have Twitter. 
 	var cancelIndex = 4;
-	if(navigator.userAgent.match(/OS 5/g)) {
+	if(navigator.userAgent.match(/OS [1-4]/g)) {
+		// Twitter added in 
+	} else {
 		pageActions.splice(pageActions.length - 2, 0, mw.msg('menu-share-twitter'));
 		cancelIndex = 5;
 	}
 	popupMenu(pageActions, function(value, index) {
-		if (index == 0) {
+		if (index == cancelIndex ) {
+			// do nothing
+		} else if (index == 0) {
 			savedPages.saveCurrentPage();
 		} else if (index == 1) {
 			shareSafari();
@@ -108,7 +113,7 @@ function showPageActions(origin) {
 			shareFB();
 		} else if (index == 3 && cancelIndex != 4) {
 			shareTwitter();
-        } else if (index == 4) {
+        } else {
             shareMail();
         }
 	}, {
@@ -134,7 +139,9 @@ function shareFB() {
 		if(status.status === "connected") {
 			share();
 		} else {
-			window.plugins.FB.login({scope: ""}, share);
+			// "email" needed to make it work on iOS 6, otherwise get FB error 2.
+			// This asks for "basic permissions".
+			window.plugins.FB.login({scope: "email"}, share);
 		}
 	});
 }
@@ -212,3 +219,4 @@ if(navigator.userAgent.match(/OS 4/)) {
 		}
 	};
 }
+

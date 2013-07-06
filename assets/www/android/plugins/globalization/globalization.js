@@ -506,9 +506,9 @@ Globalization.prototype.getCurrencyPattern = function(currencyCode, successCB, f
 		console.log("Globalization.getCurrencyPattern Error: currencyCode is not a currency code");
 	}
 };
-cordova.addConstructor(function()
-{
-	cordova.addPlugin('globalization', new Globalization());
+
+cordova.addConstructor(function() {
+	window.globalization = new Globalization();
 });
 
 GlobalizationError = function() {

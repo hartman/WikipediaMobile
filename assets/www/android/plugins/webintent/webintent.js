@@ -52,6 +52,6 @@ WebIntent.prototype.onNewIntent = function(callback) {
     }, 'WebIntent', 'onNewIntent', []);
 };
 
-PhoneGap.addConstructor(function() {
-	PhoneGap.addPlugin('webintent', new WebIntent());
+cordova.addConstructor(function() {
+	window.webintent = new WebIntent();
 });

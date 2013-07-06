@@ -53,7 +53,7 @@ if (platform == 'unknown') {
 	// Assume we're a generic web browser.
 	platform = 'web';
 } else {
-	includes.push('cordova-1.7.0.js');
+	includes.push('cordova.js');
 	var plugins = {
 		android: [
 			'menu/menu.android.js',
@@ -61,7 +61,6 @@ if (platform == 'unknown') {
 			'softkeyboard/softkeyboard.js',
 			'toast/phonegap-toast.js',
 			'share/share.js',
-			'cachemode/cachemode.js',
 			'webintent/webintent.js',
 			'globalization/globalization.js',
 			'preferences/preferences.js'

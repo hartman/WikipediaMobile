@@ -447,6 +447,7 @@
     <Content Include="css\default.css" />
     <Content Include="js\find.js" />
     <Content Include="js\jquery-1.7.2.js" />
+    <Content Include="js\share.js" />
     <Content Include="js\wikiview.js" />
     <Content Include="target.html" />
     <Content Include="win8-small-tile.scale-100.png" />

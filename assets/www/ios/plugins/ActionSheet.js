@@ -1,51 +1,46 @@
 //
 //  ActionSheet.js
 //
-// Created by Olivier Louvignes on 11/27/2011.
+// Created by Olivier Louvignes on 2011-11-27.
 //
-// Copyright 2011 Olivier Louvignes. All rights reserved.
+// Copyright 2011-2012 Olivier Louvignes. All rights reserved.
 // MIT Licensed
 
-function ActionSheet() {}
+(function(cordova) {
 
-ActionSheet.prototype.create = function(title, items, fn, options) {
-	if(!options) options = {};
+	function ActionSheet() {}
 
-	var service = 'ActionSheet',
-		action = 'create',
-		callbackId = service + (PhoneGap.callbackId + 1);
+	ActionSheet.prototype.create = function(options, callback) {
+		options || (options = {});
+		var scope = options.scope || null;
 
-	var config = {
-		title : title+'' || '',
-		items : items || ['Cancel'],
-		callback : fn || function(){},
-		scope: options.hasOwnProperty('scope') ? options.scope : null,
-		style : options.hasOwnProperty('style') ? options.style+'' : 'default',
-		destructiveButtonIndex : options.hasOwnProperty('destructiveButtonIndex') ? options.destructiveButtonIndex*1 : undefined,
-		cancelButtonIndex : options.hasOwnProperty('cancelButtonIndex') ? options.cancelButtonIndex*1 : undefined,
-		left: options.hasOwnProperty('left') ? options.left*1 : undefined,
-		top: options.hasOwnProperty('top') ? options.top*1 : undefined,
-		width: options.hasOwnProperty('width') ? options.width*1 : undefined,
-		height: options.hasOwnProperty('height') ? options.height*1 : undefined,
+		var config = {
+			title : options.title || '',
+			items : options.items || ['Cancel'],
+			style : options.style || 'default',
+			destructiveButtonIndex : options.hasOwnProperty('destructiveButtonIndex') ? options.destructiveButtonIndex : undefined,
+			cancelButtonIndex : options.hasOwnProperty('cancelButtonIndex') ? options.cancelButtonIndex : undefined,
+            left: options.hasOwnProperty('left') ? options.left*1 : undefined,
+            top: options.hasOwnProperty('top') ? options.top*1 : undefined,
+            width: options.hasOwnProperty('width') ? options.width*1 : undefined,
+            height: options.hasOwnProperty('height') ? options.height*1 : undefined,
+        };
+
+		var _callback = function(result) {
+			var buttonValue = false, // value for cancelButton
+				buttonIndex = result.buttonIndex;
+			if(!config.cancelButtonIndex || buttonIndex != config.cancelButtonIndex) {
+				buttonValue = config.items[buttonIndex];
+			}
+			if(typeof callback == 'function') callback.apply(scope, [buttonValue, buttonIndex]);
+		};
+
+		return cordova.exec(_callback, _callback, 'ActionSheet', 'create', [config]);
 	};
 
-	var callback = function(result) {
-		var buttonValue = false, // value for cancelButton
-			buttonIndex = result.buttonIndex;
+	cordova.addConstructor(function() {
+		if(!window.plugins) window.plugins = {};
+		window.plugins.actionSheet = new ActionSheet();
+	});
 
-		if(!config.cancelButtonIndex || buttonIndex != config.cancelButtonIndex) {
-			buttonValue = config.items[buttonIndex];
-		}
-
-		config.callback.call(config.scope || null, buttonValue, buttonIndex);
-	};
-
-	PhoneGap.exec(callback, callback, service, action, [config]);
-};
-
-PhoneGap.addConstructor(function() {
-	if(!window.plugins) {
-		window.plugins = {};
-	};
-	window.plugins.actionSheet = new ActionSheet();
-});
+})(window.cordova || window.Cordova);

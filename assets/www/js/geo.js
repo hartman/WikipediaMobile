@@ -122,6 +122,7 @@ window.geo = function() {
 			success: function(data) {
 				success(data);
 			},
+			dataType: 'json',
 			error: error
 		});
 	}
@@ -135,10 +136,15 @@ window.geo = function() {
 				summary = item.summary || '';
 
 				html = "<div><strong>" + item.title + "</strong><p>" + summary + "</p></div>";
-				var popupContent = $(html).click(function() {
-					app.navigateToPage(url, {hideCurrent: true});
-				})[0];
-				marker.bindPopup(popupContent, {closeButton: false});
+				var $popupContent = $( html ).click( function() {
+					app.navigateToPage( url, { hideCurrent: true } );
+				} );
+				if(l10n.isLangRTL(preferencesDB.get('language'))) {
+					$popupContent.attr( 'dir', 'rtl' );
+				} else {
+					$popupContent.attr( 'dir', 'ltr' );
+				}
+				marker.bindPopup($popupContent[0], {closeButton: false});
 				geo.map.addLayer(marker);
 				shownURLs.push(url);
 			}

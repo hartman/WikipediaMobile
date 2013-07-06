@@ -28,7 +28,8 @@ window.preferencesDB = {
 		'uiLanguage': function(success) {
 			this.uiLanguage = l10n.normalizeLanguageCode(preferencesDB.get('locale').replace(/-.*?$/, ''));
 			success();
-		}
+		},
+		'theme': 'light'
 	},
 	// Ordering of default initializer functions to call
 	defaultFunctions: [

@@ -17,13 +17,16 @@
         console.log("Error ::" + msg + " in " + url + " at line " + linenumber);
       };
     }
+      window.onerror = function (msg,url,linenumber) {
+          console.log("Error ::" + msg + " in " + url + " at line " + linenumber);
+      };
     console.log('Testing console output');
   </script>
 	<script type="text/javascript" charset="utf-8" src="js/lawnchair/Lawnchair.js"></script>
 	<script type="text/javascript" charset="utf-8" src="js/lawnchair/adapters/webkit-sqlite.js"></script>
-  <script type="text/javascript" charset="utf-8" src="js/lawnchair/adapters/memory.js"></script>
+	<script type="text/javascript" charset="utf-8" src="js/lawnchair/adapters/memory.js"></script>
 
-  <script type="text/javascript" charset="utf-8" src="js/jquery-1.7.1.js"></script>
+	<script type="text/javascript" charset="utf-8" src="js/jquery-1.8.2.min.js"></script>
 	<script type="text/javascript" charset="utf-8" src="js/hogan.min.js"></script>
 	<script type="text/javascript" charset="utf-8" src="js/noclickdelay.js"></script>
 	<script type="text/javascript" charset="utf-8" src="js/mediawiki.js"></script>
@@ -41,6 +44,7 @@
 	<!-- app logic -->
 	<script type="text/javascript" charset="utf-8" src="js/page.js"></script>
 	<script type="text/javascript" charset="utf-8" src="js/templates.js"></script>
+	<script type="text/javascript" charset="utf-8" src="js/rl.js"></script>
 	<script type="text/javascript" charset="utf-8" src="js/main.js"></script>
 	<script type="text/javascript" charset="utf-8" src="js/savedpages.js"></script>
 	<script type="text/javascript" charset="utf-8" src="js/chrome.js"></script>
@@ -54,23 +58,26 @@
 	
 	<!-- MobileFrontend -->
 	<script type="text/javascript" charset="utf-8" src="js/mobilefrontend.js"></script>
-	<script type="text/javascript" charset="utf-8" src="MobileFrontend/javascripts/toggle.js"></script>
-	<script type="text/javascript" charset="utf-8" src="MobileFrontend/javascripts/references.js"></script>
+	<script type="text/javascript" charset="utf-8" src="MobileFrontend/javascripts/modules/mf-toggle.js"></script>
+	<script type="text/javascript" charset="utf-8" src="MobileFrontend/javascripts/modules/mf-references.js"></script>
 
 	<!-- platform-specific setup and overrides -->
-  <script type="text/javascript" charset="utf-8" src="js/platform-stub.js"></script>
+	<script type="text/javascript" charset="utf-8" src="js/platform-stub.js"></script>
 
 	<link rel="stylesheet" href="leaflet/leaflet.css" />
 
-	<link rel="stylesheet" href="MobileFrontend/stylesheets/hacks.css" />
-	<link rel="stylesheet" href="MobileFrontend/stylesheets/common.css" />
-	<link rel="stylesheet" href="MobileFrontend/stylesheets/sections.css" />
-	<link rel="stylesheet" href="MobileFrontend/stylesheets/references.css" />
+	<link rel="stylesheet" href="MobileFrontend/stylesheets/common/reset.css" />
+	<link rel="stylesheet" href="MobileFrontend/stylesheets/common/mf-common.css" />
+	<link rel="stylesheet" href="MobileFrontend/stylesheets/common/mf-typography.css" />
+	<link rel="stylesheet" href="MobileFrontend/stylesheets/modules/mf-references.css" />
+	<link rel="stylesheet" href="MobileFrontend/stylesheets/modules/mf-toggle.css" />
+	<link rel="stylesheet" href="MobileFrontend/stylesheets/common/mf-hacks.css" />
+	<link rel="stylesheet" href="MobileFrontend/stylesheets/common/mf-enwp.css" />
 	<link rel="stylesheet" href="app.css" />
 
 </head>
 
-<body onload="init();" class="togglingEnabled nativeMenu">
+<body onload="init();" class="mobile live togglingEnabled nativeMenu">
 
 	<div id="templates">
 		<script type="text/html" id="settings-page-template">
@@ -84,10 +91,18 @@
 			</div>
 
 			<div class="item">
+				<label for="themeSelector"><msg key="settings-theme-selector-label"></msg></label>
+				<select id="themeSelector">
+					{{#themes}}
+					<option value="{{name}}">{{displayName}}</option>
+					{{/themes}}
+				</select>
+			</div>
+			<div class="item">
 				<label for="fontSizeSelector"><msg key="settings-font-size-label"></msg></label>
 				<select id="fontSizeSelector">
 					{{#fontSizes}}
-					<option value="{{value}}">{{name}}</option>
+					<option value="{{value}}">{{value}}</option>
 					{{/fontSizes}}
 				</select>
 			</div>
@@ -144,14 +159,18 @@
 		</script>
 
 		<script type="text/html" id="content-template">
-            <h1>{{title}}</h1>
-            <div class="lead">
-                {{{lead.text}}}
-            </div>
+			{{^isMainPage}}
+				<h1>{{title}}</h1>
+			{{/isMainPage}}
+			<div class="lead">
+				<div class="content_block openSection">
+					{{{lead.text}}}
+				</div>
+			</div>
 			{{#sections}}
 			<div class="section">
 				<h{{level}} class="section_heading" id="section_{{id}}" data-section-id="{{id}}">{{{line}}} <button></button></h{{level}}>
-				<div class="content_block" id="content_{{id}}">
+				<div class="content_block" id="content_{{id}}" {{#references}}data-populated="true"{{/references}}>
 					{{#references}}
 						{{{text}}}
 					{{/references}}
@@ -202,7 +221,7 @@
 	</div>
 
 	<header id="mainHeader">
-		<div class="titlebar" id="titlebar">
+		<div class="titlebar fadeable" id="titlebar">
 			<div id="searchFormHolder">
 			<button class="titlebarIcon" title-msg="menu-home"></button>
 			<form id="searchForm">
@@ -215,7 +234,7 @@
 		</div>
 	</header>
 
-	<div id="about-page-overlay">
+	<div id="about-page-overlay" class="overlay">
 		<header>
 			<div class="titlebar">
 				<div class="titlebarItem"><msg key="about-page-title">About</msg></div>
@@ -237,7 +256,7 @@
 		</div>
 	</div>
 
-	<div id="savedPages">
+	<div id="savedPages" class="overlay">
 		<header>
 			<div class="titlebar">
 				<div class="titlebarItem"><msg key="saved-pages-title">Saved Pages</msg></div>
@@ -250,7 +269,7 @@
 		</div>
 	</div>
 
-	<div id="history">
+	<div id="history" class="overlay">
 		<header>
 			<div class="titlebar">
 				<div class="titlebarItem"><msg key="history-title">History</msg></div>
@@ -263,13 +282,13 @@
 		</div>
 	</div>
 
-	<div id="searchresults">
+	<div id="searchresults" class="overlay">
 		<div class="scroller">
 			<div id="resultList"></div>
 		</div>
 	</div>
 
-	<div id="settings">
+	<div id="settings" class="overlay">
 		<!-- Not using header or .scroller here to work around bug 33884; it caused -->
 		<!-- the selects to become unselectable on Android 2.x for some reason. -->
 		<div>
@@ -283,7 +302,7 @@
 		</div>
 	</div>
 
-	<div id="langlinks">
+	<div id="langlinks" class="overlay">
 		<header>
 			<div class="titlebar">
 				<div class="titlebarItem"><msg key="langlinks-title">Read article in...</msg></div>
@@ -300,10 +319,14 @@
 		<div id="page-footer">
 			<span id="page-footer-contributors"></span>
 			<span id="page-footer-license"></span>
+			<span id ="page-footer-legal">
+				<a id="page-footer-terms" href="#"></a> |
+				<a id="page-footer-privacy" href="#"></a>
+			</span>
 		</div>
 	</div>
 
-	<div id="nearby-overlay">
+	<div id="nearby-overlay" class="overlay">
 		<header>
 			<div class="titlebar">
 				<div class="titlebarItem"><msg key="nearby-title">Nearby</msg></div>
@@ -313,6 +336,13 @@
 		<div id="map"></div>
 	</div>
 
+	<div id="site-style">
+		<!-- Contains site specific styles - Mediawiki:Mobile.css loaded with RL -->
+	</div>
+
+	<div id="theme-style">
+		<!-- Contains specific styles for the user's theme -->
+	</div>
 	<menu id="appMenu" type="context">
 		<command type="command" id="languageCmd" icon="optionLanguage.png" disabled action="read-in" />
 		<command type="command" id="nearbyCmd" icon="optionNearMe.png" action="near-me" />

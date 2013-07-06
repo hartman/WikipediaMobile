@@ -5,7 +5,7 @@ window.addEventListener('load', function() {
 }, true);
 
 function getAboutVersionString() {
-	return "1.1.WebWorks";
+	return "1.3.3.WebWorks";
 }
 
 chrome.openExternalLink = function(url) {

@@ -4,6 +4,9 @@
     "use strict";
     var app = WinJS.Application;
 
+    // Required for store validation since r7
+    WinJS.Binding.optimizeBindingReferences = true;
+
     // Set up data bindings for the search results list - empty initial
     WinJS.Namespace.define("SearchResults", {
         itemList: new WinJS.Binding.List([])
@@ -75,12 +78,18 @@
         return 'Wikipedia.' + lang + '.' + md5(title.replace(/_/g, ' '));
     }
 
+    // hack hack hack for l10n
     window.preferencesDB = {
         get: function (key) {
-            return 'en';
+            return navigator.userLanguage;
         }
     }
     window.ROOT_URL = '';
+
+    function getLanguage() {
+        // @fixme whitelist languages, just in case!
+        return navigator.userLanguage.replace(/-.*$/, '');
+    }
 
     var beenInitialized = false;
     function setupApp() {
@@ -116,7 +125,7 @@
                     WinJS.UI.SettingsFlyout.populateSettings(e);
                 }
 
-                initHub('en');
+                initHub(getLanguage());
                 // Handler for links!
                 $(document).on('click', 'a', function (event) {
                     var url = $(this).attr('href'),
@@ -165,6 +174,19 @@
                     event.preventDefault();
                     showHistoryMenu(this);
                 });
+                $(document).bind('keydown', function (event) {
+                    // Backspace to go back
+                    if (event.keyCode == 8) {
+                        doGoBack();
+                        event.preventDefault();
+                    }
+                    if (event.ctrlKey && event.keyCode == 'F'.charCodeAt(0)) {
+                        if (state.current().type == 'article') {
+                            $('#findCmd').click();
+                            event.preventDefault();
+                        }
+                    }
+                });
                 $('#resultlist').bind('iteminvoked', function (event) {
                     var index = event.originalEvent.detail.itemIndex;
                     var selected = SearchResults.itemList.getItem(index);
@@ -189,21 +211,19 @@
                 $('#appbar').bind('beforeshow', function () {
                     var lang = state.current().lang,
                         title = state.current().title;
-                    if (Windows.UI.StartScreen.SecondaryTile.exists(tileId(lang, title))) {
-                        $("#pinCmd").hide();
-                        $("#unpinCmd").show();
-                    } else {
-                        $("#unpinCmd").hide();
-                        $("#pinCmd").show();
-                    }
                     if (state.current().type == 'article') {
-                        $('#pinCmd').removeAttr('disabled');
-                        $('#unpinCmd').removeAttr('disabled');
-                        $('#findCmd').removeAttr('disabled');
+                        if (Windows.UI.StartScreen.SecondaryTile.exists(tileId(lang, title))) {
+                            $("#pinCmd").hide();
+                            $("#unpinCmd").show();
+                        } else {
+                            $("#unpinCmd").hide();
+                            $("#pinCmd").show();
+                        }
+                        $('#findCmd').show();
                     } else {
-                        $('#pinCmd').attr('disabled', 'disabled');
-                        $('#unpinCmd').attr('disabled', 'disabled');
-                        $('#findCmd').attr('disabled', 'disabled');
+                        $('#pinCmd').hide();
+                        $('#unpinCmd').hide();
+                        $('#findCmd').hide();
                     }
                 });
 
@@ -257,6 +277,13 @@
                     }
                     promise.then(function (langlinks) {
                         var div = document.createElement('div');
+                        if (langlinks.length == 0) {
+                            var button = document.createElement('button'),
+                                command = new WinJS.UI.MenuCommand(button, {
+                                    label: mw.msg('win8-no-langlinks')
+                                });
+                            div.appendChild(button);
+                        }
                         langlinks.forEach(function (langlink) {
                             var lang = langlink.lang,
                                 target = langlink.target,
@@ -309,14 +336,21 @@
                     // Have to disable app-wide search to input here
                     Windows.ApplicationModel.Search.SearchPane.getForCurrentView().showOnKeyboardInput = false;
                     range = document.body.createTextRange();
-                    // @fixme make a range only within the content area
+                    range.moveToElementText(reader);
                     range.collapse();
                     $('#find-input').focus();
+                });
+                $('#find-input').bind('keydown', function (event) {
+                    // Don't let keys go through to document, eg backspace handler
+                    event.stopPropagation();
                 });
                 $('#find-input').bind('keypress', function (event) {
                     if (event.keyCode == 13) {
                         event.preventDefault();
                         findNext();
+                    } else if (event.keyCode == 27) {
+                        event.preventDefault();
+                        $('#find-close').click();
                     }
                 });
                 $('#find-prev').click(function () {
@@ -352,13 +386,15 @@
                     var langlinks = [];
                     if (data.query && data.query.pages) {
                         $.each(data.query.pages, function (i, page) {
-                            page.langlinks.forEach(function (link) {
-                                langlinks.push({
-                                    lang: link.lang,
-                                    target: link['*'],
-                                    title: link['*']
+                            if (page.langlinks) {
+                                page.langlinks.forEach(function (link) {
+                                    langlinks.push({
+                                        lang: link.lang,
+                                        target: link['*'],
+                                        title: link['*']
+                                    });
                                 });
-                            });
+                            }
                         });
                     }
                     complete(langlinks);
@@ -508,7 +544,8 @@
         if (typeof html !== 'string') {
             throw new Error('must be string');
         }
-        //return html.replace(/<[^>]+>/g, ''); // fixme put in real html parser
+        // Strip any JS first for safety
+        html = toStaticHTML(html);
         return $('<div>').html(html).text();
     }
 
@@ -651,6 +688,10 @@
                     }
                 });
                 $('#subcontent').append('<div class="column-spacer"></div>');
+                WinJS.UI.Animation.enterPage($('#content')[0], 40).done(function () {
+                    // Set focus to allow keyboard scrolling
+                    $('#content').focus();
+                });
             },
             error: function (xhr, status, err) {
                 $('#spinner').hide();
@@ -667,10 +708,39 @@
             title = state.current().title,
             lang = state.current().lang,
             url = articleUrl(state.current().lang, title);
-        request.data.setUri(new Windows.Foundation.Uri(url));
-        request.data.properties.title = title + ' - Wikipedia';
-        request.data.properties.description = 'Link to Wikipedia article';
+        // Check for selection...
+        var selection = document.getSelection();
+        if (selection.isCollapsed) {
+            // No active selection; send the article URL
+            request.data.setUri(new Windows.Foundation.Uri(url));
+            request.data.properties.title = title + ' - Wikipedia';
+            request.data.properties.description = 'Link to Wikipedia article'; // @fixme l10n
+        } else {
+            // Active selection;
+            var range = selection.getRangeAt(0);
+            var fragment = range.cloneContents();
+
+            // Add text to the data package
+            var text = $(fragment).text();
+            request.data.setText(text);
+
+            // Add html to the data package
+            var div = document.createElement("div");
+            div.appendChild(fragment);
+            share.expandURLs(div, baseUrl(state.current().lang), articleUrl(state.current().lang, title));
+            var cfhtml = Windows.ApplicationModel.DataTransfer.HtmlFormatHelper.createHtmlFormat(div.outerHTML);
+            request.data.setHtmlFormat(cfhtml);
+            request.data.properties.title = 'Content from ' + title + ' - Wikipedia';
+            request.data.properties.description = 'Text from Wikipedia article'; // @fixme l10n
+        }
     });
+
+    function baseUrl(lang) {
+        if (typeof lang != 'string') {
+            throw new Error('bad lang input to articleUrl');
+        }
+        return 'https://' + lang + '.wikipedia.org';
+      }
 
     function articleUrl(lang, title) {
         if (typeof title != 'string') {
@@ -723,25 +793,22 @@
     }
 
     function insertWikiHtml(target, html) {
-        // hack for protocol-relative images (unsafe)
         if (typeof html !== "string") {
             throw new Error('we got a non-string');
         }
-        html = html.replace(/"\/\/upload\.wikimedia\.org/g, '"https://upload.wikimedia.org');
-        var $div = $('<div>');
-        MSApp.execUnsafeLocalFunction(function () {
-            $div.append(html);
-        });
-        /*
+        // Strip any JavaScript that might have made it in.
+        // Some will be harmless bits from MediaWiki, but it's safer to kill them.
+        html = toStaticHTML(html);
+        var $div = $('<div>').append(html);
+
         $div.find('img').each(function () {
-            // hack for protocol-relative images
+            // fixup for protocol-relative images
             var $img = $(this),
                 src = $img.attr('src');
             if (src.substr(0, 2) == '//') {
                 $img.attr('src', 'https:' + src);
             }
         });
-        */
         $div.find('table').each(function () {
             var $table = $(this);
             var $embedded = $table.parent().closest('table');
@@ -803,6 +870,7 @@
         $('#back').hide();
         $('#hub').show();
         $('#offline').hide();
+        $('#find-bar').hide();
         sizeContent();
     }
 
@@ -855,6 +923,58 @@
         });
     }
 
+    function largeImage(url) {
+        // This is a quick hack, which should work well enough for featured photos.
+        // Others may not scale up properly...
+        var matches = /^(.*\/)(\d+)+(px-[^/]*)$/.exec(url);
+        if (matches) {
+            var prefix = matches[1],
+                width = parseInt(matches[2]),
+                suffix = matches[3],
+                double = width * 2,
+                newUrl = prefix + double + suffix;
+            console.log(url);
+            console.log(newUrl);
+            return newUrl;
+        } else {
+            // Unrecognized image format
+            return url;
+        }
+    }
+
+    /**
+     * @param {Image} image
+     * @return {String} URL
+     */
+    function makeFitImage(image, width, height) {
+        var $canvas = $('<canvas>').attr('width', width).attr('height', height),
+            canvas = $canvas[0],
+            ctx = canvas.getContext('2d');
+        // hack hack
+        if (width > image.width) {
+            width = image.width;
+        }
+        if (height > image.height) {
+            height = image.height;
+        }
+        ctx.drawImage(image,
+            // source
+            Math.floor((image.width - width) / 2), Math.floor((image.height - height) / 2), width, height,
+            // dest
+            0, 0, width, height
+        );
+        return canvas.toDataURL();
+    }
+
+    /**
+     * @param {Image} image
+     * @return {String} URL
+     */
+    function makeSquareImage(image) {
+        var size = Math.min(image.width, image.height);
+        return makeFitImage(image, size, size);
+    }
+
     function initHub(lang) {
         doShowHub(lang);
 
@@ -880,6 +1000,8 @@
                 if (nErrors) {
                     $('#offline').show();
                 }
+                // Set focus for keyboard scrolling
+                $('#hub-list').focus();
             }
         };
 
@@ -894,6 +1016,8 @@
                 updateLiveTile(mediaWiki.message('win8-tile-featured-article').plain(), txt);
             }
             htmlList.slice(0, 8).forEach(function (html, index) {
+                // Filter for safety
+                html = toStaticHTML(html);
                 var $html = $('<div>').html(html),
                     $links = $html.find('a'),
                     $imgs = $html.find('img'),
@@ -913,19 +1037,28 @@
                     if (image.substr(0, 2) == '//') {
                         image = 'https:' + image;
                     }
+                    image = largeImage(image);
                 } else {
                     image = '/images/secondary-tile.png';
                 }
                 nItems++;
-                list.push({
+                var listItem = {
                     title: title,
                     heading: '',
                     snippet: stripHtmlTags(html).substr(0, 100) + '...',
-                    image: image,
+                    image: '#',
                     group: 'Featured articles',
                     groupText: mediaWiki.message('section-featured-articles').plain(),
                     style: (index < 1) ? 'featured-item large' : 'featured-item'
-                });
+                };
+                list.push(listItem);
+                var preload = new Image();
+                preload.src = image;
+                preload.onload = function () {
+                    var squared = makeSquareImage(preload);
+                    listItem.image = squared;
+                    document.getElementById('hub-list').winControl.forceLayout();
+                };
             });
             completeAnother();
         });
@@ -935,11 +1068,16 @@
             }
             $('#spinner').hide();
             htmlList.slice(0, 6).forEach(function (html, index) {
+                // Filter for safety
+                html = toStaticHTML(html);
                 var $html = $('<div>').html(html),
                     $links = $html.find('a'),
                     $imgs = $html.find('img'),
                     title = '',
-                    image = '';
+                    image = '',
+                    imageStyle = '',
+                    imageWidth = 0,
+                    imageHeight = 0;
                 for (var i = 0; i < $links.length; i++) {
                     var $link = $($links[i]);
                     if ($link.find('img').length) {
@@ -959,23 +1097,58 @@
                     if (image.substr(0, 2) == '//') {
                         image = 'https:' + image;
                     }
+                    image = image;
+                    var width = parseFloat($imgs.attr('width')),
+                        height = parseFloat($imgs.attr('height'));
+                    if (index == 0) {
+                        image = largeImage(image);
+                        width *= 2;
+                        height *= 2;
+                        var aspect = width / height;
+                        if (aspect > (3 / 2)) {
+                            // wider than 3:2
+                            imageHeight = height;
+                            imageWidth = Math.floor(height * 3 / 2);
+                            imageStyle = 'wide';
+                        } else if (aspect >= 1 && aspect <= (3 / 2)) {
+                            // between 1:1 and 3:2
+                            imageWidth = width;
+                            imageHeight = Math.floor(width * 2 / 3);
+                            imageStyle = 'wide';
+                        } else if (aspect < 1 && aspect >= (2 / 3)) {
+                            // between 2:3 and 1:1
+                            imageWidth = Math.floor(width * 2 / 3);
+                            imageHeight = height;
+                            imageStyle = 'tall';
+                        } else {
+                            // taller than 2:3
+                            imageWidth = width;
+                            imageHeight = Math.floor(width * 3 / 2);
+                            imageStyle = 'tall';
+                        }
+                    } else {
+                        imageWidth = Math.min(width, height);
+                        imageHeight = Math.min(width, height);
+                    }
                 }
-                var imageid = ("img" + Math.random()).replace('.', '');
                 nItems++;
-                list.push({
+                var listItem = {
                     title: title,
                     heading: '',
                     snippet: '',
-                    image: image,
-                    imageid: imageid,
+                    image: '#',
                     group: 'Featured pictures',
                     groupText: mediaWiki.message('section-featured-pictures').plain(),
-                    style: (index == 0) ? 'photo-item large' : 'photo-item'
-                });
-
-                //fetchImage(state.current().lang, image, 600, 600, function (img) {
-                //    $('#' + imageid).attr('src', img);
-                //});
+                    style: (index == 0) ? ('photo-item large ' + imageStyle) : 'photo-item'
+                };
+                list.push(listItem);
+                var preload = new Image();
+                preload.src = image;
+                preload.onload = function () {
+                    var fit = makeFitImage(preload, imageWidth, imageHeight);
+                    listItem.image = fit;
+                    document.getElementById('hub-list').winControl.forceLayout();
+                };
             });
             completeAnother();
         });
@@ -984,7 +1157,8 @@
                 nErrors++;
             }
             if (htmlList.length) {
-                var html = htmlList[0],
+                // Filter for safety
+                var html = toStaticHTML(htmlList[0]),
                     $html = $('<div>').html(html),
                     $lis = $html.find('li');
                 $lis.each(function () {
@@ -1053,10 +1227,22 @@
         var top = 150;
         var h = $(window).height() - top;
         if ($('#hub').is(':visible')) {
-            $('#hub-list').css('height', h + 'px');
+            $('#hub-list').css('height', (h + 20) + 'px');
         } else {
             $('#semanticZoomer').css('height', h + 'px')
             $('#subcontent').css('height', (h - 80) + 'px');
+        }
+
+        // Size header to fit
+        var $title = $('#title');
+        var px = 60;
+        $title.css('font-size', px + 'px');
+        while ($title.height() > 90) {
+            px -= 5;
+            if (px < 10) {
+                break;
+            }
+            $title.css('font-size', px + 'px');
         }
     }
 
@@ -1119,6 +1305,10 @@
     }
 
     function doGoBack() {
+        if (state.stack.length < 2) {
+            // Nowhere left to go...
+            return;
+        }
         var discard = state.pop(),
             redo = state.pop();
         if (redo.type == 'hub') {
@@ -1179,7 +1369,7 @@
 function groupInfo() {
     return {
         enableCellSpanning: true,
-        cellWidth: 50,
-        cellHeight: 80
+        cellWidth: 150,
+        cellHeight: 150
     };
 }

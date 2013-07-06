@@ -2,7 +2,8 @@ mw.mobileFrontend = (function() {
 	return {
 		init: function() {
 		},
-		registerModule: function() {
+		registerModule: function( name, module ) {
+			this[ name ] = module;
 		},
 		message: function(name) {
 			return mw.message(name).plain();
@@ -12,6 +13,12 @@ mw.mobileFrontend = (function() {
 				// noop; Function used in toggle.js
 			}
 		},
-		utils: jQuery
+		setting: function() {
+		},
+		supportsPositionFixed: function() {
+			return true;
+		},
+		utils: jQuery,
+		jQuery: jQuery
 	}
 })();

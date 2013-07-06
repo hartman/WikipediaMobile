@@ -75,7 +75,6 @@ window.savedPages = function() {
 
 	function saveCurrentPage(options) {
 		var d = $.Deferred();
-		var MAX_LIMIT = 50;
 
 		options = $.extend({silent: false}, options);
 
@@ -86,18 +85,12 @@ window.savedPages = function() {
 		var savedPagesDB = new Lawnchair({name:"savedPagesDB"}, function() {
 			this.keys(function(records) {
 				if (records != null) {
-					if (records.length > MAX_LIMIT) {
-						// we've reached the max limit
-						// @todo this is probably not great, remove this :)
-						alert(mw.message("saved-pages-max-warning").plain());
-					}else{
-						savedPagesDB.save({key: app.curPage.getAPIUrl(), title: title, lang: app.curPage.lang, version: SAVED_PAGES_VERSION});
-						savedPages.doSave(options).done(function() {
-							d.resolve()
-						}).fail(function() {
-							d.reject();
-						});
-					}
+					savedPagesDB.save({key: app.curPage.getAPIUrl(), title: title, lang: app.curPage.lang, version: SAVED_PAGES_VERSION});
+					savedPages.doSave(options).done(function() {
+						d.resolve()
+					}).fail(function() {
+						d.reject();
+					});
 				}
 			});
 		});

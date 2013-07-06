@@ -43,6 +43,8 @@
 					lastCollapsibleSection.subSections.push( section );
 				}
 			});
+
+			this.isMainPage = 'mainpage' in rawJSON.mobileview;
 		}
 
 		this.title = title;
@@ -70,7 +72,6 @@
 		return app.makeAPIRequest({
 			action: 'mobileview',
 			page: title,
-			redirects: 'yes',
 			prop: 'sections|text',
 			sections: sections,
 			sectionprop: 'level|line',
@@ -191,7 +192,8 @@
 	};
 
 	Page.prototype.getHistoryUrl = function() {
-		return this.getCanonicalUrl() + "?action=history";
+		// This is uncaught by our intent filters, so will go directly to browser
+		return app.baseUrlForLanguage(this.lang) + "/w/index.php?title=" + encodeURIComponent(this.title.replace(/ /g, '_')) + "&action=history";
 	}
 
 	Page.prototype.getCanonicalUrl = function() {

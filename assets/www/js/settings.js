@@ -1,6 +1,7 @@
 window.appSettings = function() {
 	var fontSizes = [];	
 	var locales = [];
+	var themes = [];
 
 	function showSettings(callback) {
 		chrome.showSpinner();
@@ -8,9 +9,17 @@ window.appSettings = function() {
 
 		if(fontSizes.length == 0) {
 			fontSizes = [
-				{value: '75%', name: mw.message('settings-font-size-smaller').plain() },
-				{value: '100%', name: mw.message('settings-font-size-normal').plain() },
-				{value: '125%', name: mw.message('settings-font-size-larger').plain() }
+				{ value: '100%' },
+				{ value: '150%' },
+				{ value: '200%' },
+				{ value: '300%' }
+			];
+		}
+
+		if( themes.length === 0 ) {
+			themes = [
+				{ name: 'light', displayName: mw.msg( 'theme-light' ), fileName: 'themes/light.less.css' },
+				{ name: 'solarized-dark', displayName: mw.msg( 'theme-solarized-dark' ), fileName: 'themes/solarized-dark.less.css' }
 			];
 		}
 
@@ -40,7 +49,12 @@ window.appSettings = function() {
 
 	function renderSettings() {
 		var template = templates.getTemplate('settings-page-template');
-		$("#settingsList").html(template.render({languages: locales, fontSizes: fontSizes, aboutPage: aboutPage}));
+		$("#settingsList").html( template.render( {
+			languages: locales,
+			fontSizes: fontSizes,
+			themes: themes,
+			aboutPage: aboutPage
+		} ) );
 
 		var currentContentLanguage = preferencesDB.get("language");
 		$("#contentLanguageSelector").val(currentContentLanguage).change(onContentLanguageChanged);
@@ -53,6 +67,7 @@ window.appSettings = function() {
 			}
 		});
 		$("#fontSizeSelector").val(preferencesDB.get("fontSize")).change(onFontSizeChanged);
+		$( "#themeSelector" ).val( preferencesDB.get( "theme" ) ).change( onThemeChanged );
 		$("#aboutPageLabel").click(function () {
 			aboutPage();
 		});
@@ -81,6 +96,12 @@ window.appSettings = function() {
 	function onFontSizeChanged() {
 		var selectedFontSize = $(this).val();
 		app.setFontSize(selectedFontSize);
+		chrome.showContent();
+	}
+
+	function onThemeChanged() {
+		var selectedTheme = $( this ).val();
+		app.setTheme( selectedTheme );
 		chrome.showContent();
 	}
 

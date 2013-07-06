@@ -35,20 +35,41 @@ window.chrome = function() {
 		return $('#search').hasClass('inProgress');
 	}
 
-	function renderHtml(page) {
+	var curSiteCSSLang = null;
+	function loadSiteCSS( lang ) {
+		if( lang === curSiteCSSLang ) {
+			return;
+		}
+		rl.requestSiteCSS( lang ).done( function( css ) {
+			loadCSS( 'site-style', css );
+			curSiteCSSLang = lang;
+		} );
+	}
 
+	function loadCSS( name, css ) {
+		$( '#' + name ).html( '<style>' + css + '</style>' );
+	}
+
+	function renderHtml(page) {
+		loadSiteCSS( page.lang );
 		$('base').attr('href', page.getCanonicalUrl());
 
 		if(l10n.isLangRTL(page.lang)) {
-			$("#content").attr('dir', 'rtl');
+			$("#main").attr('dir', 'rtl');
 		} else {
-			$("#content").attr('dir', 'ltr');
+			$("#main").attr('dir', 'ltr');
 		}
 		$("#main").html(page.toHtml());
 
-		chrome.initContentLinkHandlers("#main");
+		chrome.initContentLinkHandlers( $( "#main" ) );
+		scrubInlineStyles( $( "#main" ) );
 		mw.mobileFrontend.references.init($("#main")[0], false, {animation: 'none', onClickReference: onClickReference});
 		handleSectionExpansion();
+	}
+
+	function scrubInlineStyles( $containerElement ) {
+		// Let's start conservatively - scrub background off table, td, th, tr
+		$containerElement.find( 'td[style], table[style], th[style], tr[style]' ).addClass( 'colorOverride' );
 	}
 
 	function populateSection(sectionID) {
@@ -57,8 +78,10 @@ window.chrome = function() {
 		var $contentBlock = $(selector);
 		if(!$contentBlock.data('populated')) {
 			app.curPage.requestSectionHtml( sectionID ).done( function( sectionHtml ) {
-				$contentBlock.append( $( sectionHtml ) ).data( 'populated', true );
-				chrome.initContentLinkHandlers( selector );
+				var $el = $( sectionHtml );
+				$contentBlock.append( $el ).data( 'populated', true );
+				chrome.initContentLinkHandlers( $el );
+				scrubInlineStyles( $contentBlock );
 				mw.mobileFrontend.references.init( $contentBlock[0], false, { animation: 'none', onClickReference: onClickReference } );
 				d.resolve();
 			});
@@ -75,6 +98,7 @@ window.chrome = function() {
 				mw.mobileFrontend.toggle.wm_toggle_section( sectionID );
 				chrome.setupScrolling( "#content" );
 			});
+			return false;
 		});
 	}
 
@@ -117,6 +141,22 @@ window.chrome = function() {
 				updateMenuState();
 				$("#page-footer-contributors").html(mw.message('page-contributors').plain());
 				$("#page-footer-license").html(mw.message('page-license').plain());
+				$("#page-footer-terms")
+					.text(mw.message('page-terms').plain())
+					.attr('href', mw.message('page-terms-url').plain())
+					.click(function(event) {
+						// Don't open inside the app. This explodes.
+						chrome.openExternalLink($(this).attr('href'));
+						event.preventDefault();
+					});
+				$("#page-footer-privacy")
+					.text(mw.message('page-privacy').plain())
+					.attr('href', mw.message('page-privacy-url').plain())
+					.click(function(event) {
+						// Don't open inside the app. This explodes.
+						chrome.openExternalLink($(this).attr('href'));
+						event.preventDefault();
+					});
 				$("#show-page-history").click(function() {
 					if(app.curPage) {
 						chrome.openExternalLink(app.curPage.getHistoryUrl());
@@ -183,17 +223,64 @@ window.chrome = function() {
 			mw.mobileFrontend.references.init($("#content")[0], true, {onClickReference: onClickReference} );
 
 			app.setFontSize(preferencesDB.get('fontSize'));
+			app.setTheme( preferencesDB.get( 'theme' ) );
+
+			handleHeaderTimeout();
 		});
 
 	}
 
 	// Bind to links inside reference reveal, handle them properly
 	function onClickReference() {
-			chrome.initContentLinkHandlers("#mf-references");
+		chrome.initContentLinkHandlers( $( "#mf-references" ) );
+		if(l10n.isLangRTL(app.curPage.lang)) {
+			$( "#mf-references" ).attr('dir', 'rtl');
+		} else {
+			$( "#mf-references" ).attr('dir', 'ltr');
+		}
 	}
 
 	function loadFirstPage() {
 		return app.loadMainPage();
+	}
+
+	var headerTimeout;
+	var HEADER_TIMEOUT_INTERVAL = 10 * 1000; // Timeout before the header disappears
+	function handleHeaderTimeout() {
+		var $header = $( '#titlebar' );
+
+		function resetTimeout() {
+			clearTimeout( headerTimeout );
+			headerTimeout = setTimeout( hideHeader, HEADER_TIMEOUT_INTERVAL );
+		}
+
+		function showHeader() {
+			$header.removeClass( 'fadeOut' );
+			resetTimeout();
+		}
+
+		function hideHeader() {
+			if( $header.is( ':visible' ) &&
+					$( window ).scrollTop() > 48  &&  // Leave no awkward whitespace on top!
+					!$( '#search' ).hasClass( 'inProgress' ) && // Not if the spinner is spinning, no!
+					app.curPage != null ) { // Only if we have an actively visible non-error page
+				$header.addClass( 'fadeOut' );
+
+			}
+		}
+
+
+		$( 'body' ).on( 'touchstart touchmove touchdown', resetTimeout );
+		$( 'body' ).click( showHeader );
+		$( window ).scroll( function() {
+			if( $( window ).scrollTop() < 48 * 2 ) {
+				showHeader();
+			}
+		} );
+		headerTimeout = setTimeout( hideHeader, HEADER_TIMEOUT_INTERVAL );
+
+		chrome.showHeader = showHeader;
+		chrome.hideHeader = hideHeader;
 	}
 
 	function isTwoColumnView() {
@@ -296,8 +383,8 @@ window.chrome = function() {
 		});
 	}
 
-	function initContentLinkHandlers(selector) {
-		$(selector).find('a').unbind('click').bind('click', function(event) {
+	function initContentLinkHandlers( $element ) {
+		$element.find( 'a' ).unbind( 'click' ).bind( 'click', function( event ) {
 			var target = this,
 				url = target.href,             // expanded from relative links for us
 				href = $(target).attr('href'); // unexpanded, may be relative
@@ -310,6 +397,7 @@ window.chrome = function() {
 				// ...and open it in parent context for reals.
 				chrome.openExternalLink(url);
 			}
+			chrome.showHeader();
 		});
 	}
 	
@@ -353,6 +441,9 @@ window.chrome = function() {
 		setupScrolling: setupScrolling,
 		scrollTo: scrollTo,
 		populateSection: populateSection,
-		initContentLinkHandlers: initContentLinkHandlers
+		initContentLinkHandlers: initContentLinkHandlers,
+		showHeader: null, // initialized inside handleHeaderTimeout
+		hideHeader: null,  // initialized inside handleHeaderTimeout
+		loadCSS: loadCSS
 	};
 }();

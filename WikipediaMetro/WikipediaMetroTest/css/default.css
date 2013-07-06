@@ -10,8 +10,8 @@
     position:  absolute;
     left:  120px;
     top:  30px;
-    height: 90px;
-    overflow-y: hidden;
+    /*height: 90px;
+    overflow-y: hidden;*/
 }
 #back {
     position: absolute;
@@ -47,17 +47,28 @@
 .win-listview {
     height: 600px;
 }
+#hub-list .win-listview {
+    margin-bottom: 50px;
+}
 .photo-item {
-    width: 290px;
-    height: 170px;
+    width: 150px;
+    height: 150px;
     border: none;
     padding: 0;
     overflow: hidden;
     background: #eef;
 }
-.win-listview .win-viewport.win-horizontal .photo-item.large {
-    width: 590px;
-    height: 350px;
+.photo-item.large {
+    width: 310px;
+    height: 310px;
+}
+.photo-item.large.wide {
+    width: 470px;
+    height: 310px;
+}
+.photo-item.large.tall {
+    width: 310px;
+    height: 470px;
 }
 .featured-item h5 {
     display: none;
@@ -85,18 +96,17 @@
     height: auto;
 }
 
-
 .featured-item {
-    width: 170px;
-    height: 170px;
+    width: 150px;
+    height: 150px;
     border: none;
     padding: 0px;
     overflow: hidden;
     background: #eef;
 }
 .featured-item.large {
-    width: 350px;
-    height: 170px;
+    width: 310px;
+    height: 150px;
 }
 .featured-item h5 {
     display: none;
@@ -121,7 +131,7 @@
     position: absolute;
     bottom: 0;
     left: 0px;
-    width: 160px;
+    width: 140px;
     top: 0;
     padding: 0 10px;
     background: rgba(0, 0, 0, 0.5);
@@ -135,12 +145,16 @@
     height: auto;
 }
 .featured-item.large img {
-    width: 170px;
+    width: 150px;
+}
+.featured-item.large img.wide {
+    width: auto;
+    height: 150px;
 }
 
 .onthisday-item {
-    width: 288px;
-    height: 168px;
+    width: 308px;
+    height: 148px;
     border: none;
     padding: 0px;
     overflow: hidden;
@@ -233,13 +247,16 @@
     left: 0px;
     bottom: 0px;
 }
+#hub {
+    top: 130px;
+}
+
 #content h2 {
     break-before: column;
     margin-after: 10px;
 }
 #hub h2 {
     position: relative;
-    top: -0.5em;
 }
 #hub h2.first {
     break-before: inherit;
@@ -321,7 +338,7 @@ button.show-table {
 @media all and (min-width: 321px) {
     /* Fullscreen or most of screen */
     #subcontent {
-        column-width: 300px;
+        column-width: 280px;
         column-gap: 20px;
         column-fill: auto;
     }

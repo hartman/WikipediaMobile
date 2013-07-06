@@ -15,10 +15,6 @@ ToastPlugin.prototype.show_short = function(message, win, fail) {
  * <li>Also register native call which will be called when this plugin runs</li>
  * </ul>
  */
-PhoneGap.addConstructor(function() { 
-  // Register the javascript plugin with PhoneGap
-  PhoneGap.addPlugin('ToastPlugin', new ToastPlugin());
-
-  // Register the native class of plugin with PhoneGap
-  // navigator.app.addService("ToastPlugin", "com.chariotsolutions.toast.plugin.ToastPlugin"); 
+cordova.addConstructor(function() { 
+  window.ToastPlugin = new ToastPlugin();
 });

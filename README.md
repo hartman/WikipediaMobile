@@ -53,6 +53,10 @@ Q. I can&#39;t seem to find PhoneGap 1.4.1! Where can I download it?
 
 A: https://nodeload.github.com/phonegap/phonegap/zipball/1.4.1
 
+Q: Where do i file bugs or feature requests?
+
+A: Please use the [Wikimedia Bugzilla tracker](https://bugzilla.wikimedia.org/enter_bug.cgi?product=Wikipedia%20App)
+
 ## Contributing
 Please ensure you read STYLE_GUIDELINES before making any contribution to this project!
 

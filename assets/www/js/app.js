@@ -1,12 +1,15 @@
 window.app = function() {
 
-	var wikis = [];
+	var wikis = null;
 
 	function getWikiMetadata() {
 		var d = $.Deferred();
-		if(wikis.length === 0) {
-			$.get(ROOT_URL + 'wikis.json').done(function(data) {
-				wikis = JSON.parse(data);
+		if( wikis === null ) {
+			$.ajax({
+				url: ROOT_URL + 'wikis.json',
+				dataType: 'json'
+			}).done(function(data) {
+				wikis = data;
 				d.resolve(wikis);
 			});
 		} else {
@@ -92,15 +95,7 @@ window.app = function() {
 			chrome.setSpinningReq(req);
 		}
 
-		if(!navigator.onLine) {
-			app.setCaching(true, function() {
-				console.log("HEYA!");
-				doRequest();
-				app.setCaching(false);
-			});
-		} else {
-			doRequest();
-		}
+		doRequest();
 		return d;
 	}
 
@@ -121,6 +116,11 @@ window.app = function() {
 		return app.baseUrlForLanguage(lang) + "/wiki/" + encodeURIComponent(title.replace(/ /g, '_'));
 	}
 
+	function resourceLoaderURL( lang ) {
+		// Path to the ResourceLoader load.php to be used for loading site-specific css
+		return "http://bits.wikimedia.org/" + lang + ".wikipedia.org/load.php"
+	}
+
 	function baseUrlForLanguage(lang) {
 		return window.PROTOCOL + '://' + lang + '.' + PROJECTNAME + '.org';
 	}
@@ -139,9 +139,18 @@ window.app = function() {
 		$('#main').css('font-size', size);
 	}
 
-	function setCaching(enabled, success) {
-		// Do nothing by default
-		success();
+	var curTheme = null;
+	function setTheme( name ) {
+		var url = ROOT_URL + 'themes/' + name + '.less.css';
+		if( name == curTheme ) {
+			return;
+		}
+		$.get( url ).done( function( data ) {
+			chrome.loadCSS( 'theme-style', data );
+			$( 'body' ).removeClass( 'theme-' + curTheme ).addClass( 'theme-' + name );
+			curTheme = name;
+			preferencesDB.set( 'theme', name );
+		} );
 	}
 
 	function navigateTo(title, lang, options) {
@@ -243,6 +252,7 @@ window.app = function() {
 	}
 	var exports = {
 		setFontSize: setFontSize,
+		setTheme: setTheme,
 		setContentLanguage: setContentLanguage,
 		navigateToPage: navigateToPage,
 		getCurrentUrl: getCurrentUrl,
@@ -251,7 +261,7 @@ window.app = function() {
 		titleForUrl:titleForUrl,
 		languageForUrl: languageForUrl,
 		baseUrlForLanguage: baseUrlForLanguage,
-		setCaching: setCaching,
+		resourceLoaderURL: resourceLoaderURL,
 		loadPage: loadPage,
 		loadCachedPage: loadCachedPage, 
 		makeCanonicalUrl: makeCanonicalUrl,

@@ -1,31 +1,27 @@
 //
 //  ActionSheet.m
-//  
-// Created by Olivier Louvignes on 11/27/2011.
 //
-// Copyright 2011 Olivier Louvignes. All rights reserved.
+// Created by Olivier Louvignes on 2011-11-27
+// Updated on 2012-08-04 for Cordova ARC-2.1+
+//
+// Copyright 2011-2012 Olivier Louvignes. All rights reserved.
 // MIT Licensed
 
-#import "ActionSheet.h" 
+#import "ActionSheet.h"
 
-@implementation ActionSheet 
+@implementation ActionSheet
 
-@synthesize callbackID;
+@synthesize callbackId = _callbackId;
 
--(void)create:(NSMutableArray*)arguments withDict:(NSMutableDictionary*)options  
-{
-	
-	//NSLog(@"options: %@", options);
-	//NSLog(@"arguments: %@", arguments);
-	
-	// The first argument in the arguments parameter is the callbackID.
-	// We use this to send data back to the successCallback or failureCallback
-	// through PluginResult.
-	self.callbackID = [arguments pop];
-	
+- (void)create:(CDVInvokedUrlCommand*)command {
+
+	self.callbackId = command.callbackId;
+	NSDictionary *options = [command.arguments objectAtIndex:0];
+
 	// Compiling options with defaults
 	NSString *title = [options objectForKey:@"title"] ?: @"";
 	NSString *style = [options objectForKey:@"style"] ?: @"black-translucent";
+	//NSString *style = [options objectForKey:@"style"] ?: @"default";
 	NSArray *items = [options objectForKey:@"items"];
 	NSInteger cancelButtonIndex = [[options objectForKey:@"cancelButtonIndex"] intValue] ?: false;
 	NSInteger destructiveButtonIndex = [[options objectForKey:@"destructiveButtonIndex"] intValue] ?: false;
@@ -33,6 +29,7 @@
     NSInteger top = [[options objectForKey:@"top"] intValue] ?: false;
     NSInteger width = [[options objectForKey:@"width"] intValue] ?: false;
     NSInteger height = [[options objectForKey:@"height"] intValue] ?: false;
+    
 
 	// Create actionSheet
 	UIActionSheet *actionSheet = [[UIActionSheet alloc] initWithTitle:title
@@ -40,11 +37,12 @@
 										  cancelButtonTitle:nil
 									 destructiveButtonTitle:nil
 										  otherButtonTitles:nil];
-	
-	// Style actionSheet, defaults to BlackTranslucent
+
+	// Style actionSheet, defaults to UIActionSheetStyleDefault
 	if([style isEqualToString:@"black-opaque"]) actionSheet.actionSheetStyle = UIActionSheetStyleBlackOpaque;
-	else actionSheet.actionSheetStyle = UIActionSheetStyleBlackTranslucent;
-	
+	else if([style isEqualToString:@"black-translucent"]) actionSheet.actionSheetStyle = UIActionSheetStyleBlackTranslucent;
+	else actionSheet.actionSheetStyle = UIActionSheetStyleDefault;
+
 	// Fill with elements
 	for(int i = 0; i < [items count]; i++) {
 		[actionSheet addButtonWithTitle:[items objectAtIndex:i]];
@@ -69,40 +67,29 @@
 
 }
 
-/*-(void)show:(NSMutableArray*)arguments withDict:(NSMutableDictionary*)options  
-{
-	// Toggle ActionSheet
-    [self.actionSheet showInView:self.webView.superview];
-}*/
+- (void)actionSheet:(UIActionSheet *)actionSheet didDismissWithButtonIndex:(NSInteger)buttonIndex {
 
-// ActionSheet generic dismiss
-- (void)actionSheet:(UIActionSheet *)actionSheet didDismissWithButtonIndex:(NSInteger)buttonIndex
-{
-	//NSLog(@"didDismissWithButtonIndex:%d", buttonIndex);
-	
 	// Build returned result
 	NSMutableDictionary *result = [[NSMutableDictionary alloc] init];
 	[result setObject:[NSNumber numberWithInteger:buttonIndex] forKey:@"buttonIndex"];
-	
+
 	// Create Plugin Result
 	CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:result];
-	
+
 	// Checking if cancel was clicked
 	if (buttonIndex != actionSheet.cancelButtonIndex) {
 		//Call  the Failure Javascript function
-		[self writeJavascript: [pluginResult toErrorCallbackString:self.callbackID]];
+		[self writeJavascript: [pluginResult toErrorCallbackString:self.callbackId]];
 	// Checking if destructive was clicked
 	} else if (buttonIndex != actionSheet.destructiveButtonIndex) {
 		//Call  the Success Javascript function
-		[self writeJavascript: [pluginResult toSuccessCallbackString:self.callbackID]];
+		[self writeJavascript: [pluginResult toSuccessCallbackString:self.callbackId]];
 	// Other button was clicked
-	} else {    
+	} else {
 		//Call  the Success Javascript function
-		[self writeJavascript: [pluginResult toSuccessCallbackString:self.callbackID]];
+		[self writeJavascript: [pluginResult toSuccessCallbackString:self.callbackId]];
 	}
-	
-	// Release objects
-	[actionSheet release];
+
 }
 
 @end
